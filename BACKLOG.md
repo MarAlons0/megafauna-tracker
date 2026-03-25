@@ -47,3 +47,6 @@ Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in p
 - [x] AI summarizer scaffold (`ai/summarizer.py`) with `bear_forecast()`, `summarize_report()`, `chat()` methods
 - [x] Render deployment config (Procfile + wsgi.py)
 - [x] README
+- [x] Bear paw favicon (PNG app icon)
+- [x] App renamed to Megafauna Tracker (removed Alaska-only framing)
+- [x] Version badge in navbar (v0.3); version exposed on `/health`

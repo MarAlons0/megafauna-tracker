@@ -1,14 +1,14 @@
 # Megafauna Tracker
 
-Real-time wildlife sighting tracker for a Cincinnati → Alaska road trip. Shows research-grade observations from iNaturalist on an interactive map, filtered by species group, search radius, and time window.
+Real-time megafauna sighting tracker for North America. Shows research-grade wildlife observations from iNaturalist on an interactive map, filtered by species group, search radius, and time window. Live at **https://megafauna-tracker.onrender.com**
 
 ## Overview
 
-The app covers the full drive corridor — Badlands (SD), Glacier NP (MT), the Canadian Highway, and several Alaska zones — letting you check recent sightings before and during a leg of the trip.
+The app covers the full Cincinnati → Alaska drive corridor — Badlands (SD), Glacier NP (MT), the Canadian Highway, and Alaska zones — and is being expanded to all of North America.
 
-**Data source:** [iNaturalist API v1](https://api.inaturalist.org/v1/docs/) — no authentication required, research-grade observations only.
+**Primary data source:** [iNaturalist API v1](https://api.inaturalist.org/v1/docs/) — no authentication required, research-grade observations only.
 
-**Phase 2 (planned):** ADF&G salmon weir counts + Claude AI bear activity forecast.
+**Conditions data:** ADF&G Region 2 fishing/wildlife reports scraped and summarized by Claude AI; displayed in the Conditions card.
 
 ---
 
@@ -19,10 +19,10 @@ The app covers the full drive corridor — Badlands (SD), Glacier NP (MT), the C
 | Backend | Python / Flask 3 + Jinja2 |
 | Frontend | Bootstrap 5 (dark theme) + Leaflet.js |
 | Map tiles | OpenStreetMap |
-| Data | iNaturalist API v1 |
+| Data | iNaturalist API v1 + ADF&G report scraper |
 | Cache | JSON file cache (`.cache/` directory) |
-| AI (Phase 2) | Anthropic Claude API (`claude-sonnet-4`) |
-| Deployment | Gunicorn + Render |
+| AI | Anthropic Claude API (`claude-sonnet-4-6`) |
+| Deployment | Gunicorn + Render (https://megafauna-tracker.onrender.com) |
 
 ---
 
@@ -39,15 +39,16 @@ megafauna-tracker/
 ├── .env                    # ANTHROPIC_API_KEY (not committed)
 ├── sources/
 │   ├── inaturalist.py      # iNaturalist API client
-│   ├── adfg_fishcounts.py  # ADF&G salmon weir counts (Phase 2 stub)
-│   ├── adfg_reports.py     # ADF&G report scraper (Phase 2 stub)
-│   └── forums.py           # Alaska Outdoors Forums scraper (Phase 3 stub)
+│   ├── adfg_fishcounts.py  # ADF&G salmon weir counts (stub — seasonal, Jun–Sep)
+│   ├── adfg_reports.py     # ADF&G Region 2 report scraper (live)
+│   └── forums.py           # Alaska Outdoors Forums scraper (stub)
 ├── ai/
-│   └── summarizer.py       # Claude-powered bear forecast + report summarizer
+│   └── summarizer.py       # Claude-powered report summarizer + bear forecast
 ├── templates/
 │   ├── base.html
 │   └── index.html          # Main UI: map + feed sidebar + controls
 └── static/
+    ├── favicon.png          # Bear paw app icon
     └── css/style.css
 ```
 
@@ -89,8 +90,9 @@ All taxon IDs verified against the iNaturalist API (March 2026). See `species_co
 | `GET` | `/` | Main UI |
 | `GET` | `/sightings` | iNaturalist observations near a point |
 | `GET` | `/species` | Priority species list by route segment |
-| `GET` | `/salmon-count` | ADF&G weir count + bear forecast (Phase 2) |
-| `GET` | `/local-conditions` | ADF&G report summary (Phase 2) |
+| `GET` | `/salmon-count` | ADF&G weir count + bear forecast (seasonal stub) |
+| `GET` | `/local-conditions` | ADF&G Region 2 report + Claude summary (live) |
+| `GET` | `/sources` | Status and cache age for all data sources |
 | `GET` | `/health` | Render health check |
 
 **`/sightings` parameters:**
@@ -131,31 +133,31 @@ python app.py
 The app is Render-ready via `Procfile`:
 
 ```
-web: gunicorn wsgi:app
+web: gunicorn wsgi:app --bind 0.0.0.0:$PORT
 ```
 
-Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard. No database required — all state is either fetched live or cached in `.cache/`.
+Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard. No database required — all state is either fetched live or cached in `.cache/`. Note: Render's free tier has ephemeral storage, so the cache resets on each restart.
 
 ---
 
 ## Roadmap
 
-### Phase 1 — Complete
+### v0.3 — Current
 - iNaturalist live feed with research-grade filtering
 - Leaflet map with color-coded species markers
 - Species group checkboxes, radius + time-window selectors
 - Route segment selector with map centering
 - Geolocation ("My Location") button
-- JSON file cache (1-hour TTL for sightings)
-- Render deployment config
+- Source visibility panel with status pills and toggle
+- ADF&G Region 2 report scraper + Claude AI summarization
+- Live Conditions card (alerts, sightings, AI summary)
+- Deployed to Render (https://megafauna-tracker.onrender.com)
+- Bear paw favicon + version badge in navbar
 
-### Phase 2 — Planned
-- ADF&G salmon weir count scraper (Russian River, Kenai, etc.)
-- Claude AI bear activity forecast based on weir counts
-- ADF&G report scraper + Claude summarization
-- Conditions card in sidebar (currently shows Phase 2 placeholder)
-
-### Phase 3 — Planned
-- Alaska Outdoors Forums scraper for local trip reports
-- Chatbot interface for natural-language queries
-- Mobile layout polish
+### Planned
+- Time-dependence visualization (sighting trends, marker age)
+- AI Analysis page with Claude chat interface
+- iPhone-first layout overhaul
+- North America expansion (beyond Alaska route)
+- ADF&G salmon weir count scraper (seasonal — Jun–Sep)
+- ADF&G salmon weir count + Claude bear activity forecast
