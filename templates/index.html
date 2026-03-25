@@ -1,0 +1,545 @@
+{% extends "base.html" %}
+
+{% block title %}Alaska Megafauna Tracker{% endblock %}
+
+{% block content %}
+
+<!-- ── Controls Bar ────────────────────────────────────────────── -->
+<div class="controls-bar bg-dark border-bottom border-secondary py-2 px-3">
+    <div class="row g-2 align-items-center">
+
+        <!-- Route Segment -->
+        <div class="col-6 col-md-3">
+            <select id="segment-select" class="form-select form-select-sm bg-dark text-light border-secondary">
+                <option value="">— Anywhere on Route —</option>
+                {% for key in segment_order %}
+                {% set seg = route_segments[key] %}
+                <option value="{{ key }}"
+                        data-lat="{{ seg.center.lat }}"
+                        data-lng="{{ seg.center.lng }}"
+                        data-zoom="{{ seg.default_zoom }}">
+                    {{ seg.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Radius -->
+        <div class="col-3 col-md-2">
+            <select id="radius-select" class="form-select form-select-sm bg-dark text-light border-secondary">
+                <option value="10">10 mi</option>
+                <option value="25" selected>25 mi</option>
+                <option value="50">50 mi</option>
+                <option value="100">100 mi</option>
+            </select>
+        </div>
+
+        <!-- Days -->
+        <div class="col-3 col-md-2">
+            <select id="days-select" class="form-select form-select-sm bg-dark text-light border-secondary">
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+                <option value="180">6 months</option>
+                <option value="365" selected>1 year</option>
+            </select>
+        </div>
+
+        <!-- My Location Button -->
+        <div class="col-auto">
+            <button id="btn-geolocate" class="btn btn-sm btn-outline-warning" title="Use my location">
+                <i class="fas fa-crosshairs"></i>
+                <span class="d-none d-md-inline ms-1">My Location</span>
+            </button>
+        </div>
+
+        <!-- Load Button -->
+        <div class="col-auto">
+            <button id="btn-load" class="btn btn-sm btn-primary">
+                <i class="fas fa-sync-alt me-1"></i>Load
+            </button>
+        </div>
+
+        <!-- Status indicator -->
+        <div class="col-12 col-md-auto ms-md-auto">
+            <div id="status-text" class="text-secondary small"></div>
+        </div>
+    </div>
+
+    <!-- Species Filter Row -->
+    <div class="row g-2 mt-1">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="text-secondary small me-1">Show:</span>
+                {% for key, group in species_groups.items() %}
+                <div class="form-check form-check-inline mb-0">
+                    <input class="form-check-input species-check" type="checkbox"
+                           id="chk-{{ key }}" value="{{ key }}" checked
+                           style="accent-color: {{ group.color }};">
+                    <label class="form-check-label text-light small" for="chk-{{ key }}">
+                        {{ group.label }}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sources Row -->
+    <div class="row g-2 mt-1">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="text-secondary small me-1">Sources:</span>
+                <div id="sources-list" class="d-flex flex-wrap gap-2">
+                    <span class="text-secondary small fst-italic">Loading…</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Main Layout ─────────────────────────────────────────────── -->
+<div class="main-layout">
+
+    <!-- Map Panel -->
+    <div class="map-panel">
+        <div id="map"></div>
+    </div>
+
+    <!-- Right Sidebar: Feed + Conditions -->
+    <div class="sidebar-panel">
+
+        <!-- Conditions Card -->
+        <div class="conditions-card p-3 border-bottom border-secondary">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0 text-warning">
+                    <i class="fas fa-binoculars me-1"></i>Conditions
+                </h6>
+                <span id="conditions-updated" class="text-secondary small"></span>
+            </div>
+            <div id="conditions-content" class="text-light small">
+                <span class="text-secondary small fst-italic">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Loading ADF&amp;G reports…
+                </span>
+            </div>
+        </div>
+
+        <!-- Live Feed -->
+        <div class="feed-panel">
+            <div class="feed-header px-3 py-2 border-bottom border-secondary d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 text-light">
+                    <i class="fas fa-list me-1"></i>
+                    Recent Sightings <span id="feed-count" class="badge bg-secondary ms-1">0</span>
+                </h6>
+            </div>
+            <div id="feed-list" class="feed-list">
+                <div class="text-secondary text-center py-4 small" id="feed-empty">
+                    Select a location and click Load
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Segment Info Modal -->
+<div class="modal fade" id="segmentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="segmentModalTitle"></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="segmentModalDesc" class="text-secondary"></p>
+                <p id="segmentModalNotes" class="small text-warning"></p>
+                <div id="segmentModalSpecies"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Species group config (from server) ──────────────────────────────
+const SPECIES_GROUPS = {{ species_groups | tojson }};
+const ROUTE_SEGMENTS = {{ route_segments | tojson }};
+
+// ── State ───────────────────────────────────────────────────────────
+let map;
+let markerLayer;
+let currentCenter = null;  // {lat, lng}
+let activeSources = new Set(['inaturalist']);  // sources the user has enabled
+
+// ── Map Init ────────────────────────────────────────────────────────
+function initMap() {
+    // Default: center of Alaska route (roughly Yukon)
+    map = L.map('map', { zoomControl: true }).setView([61.0, -140.0], 5);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 18,
+    }).addTo(map);
+
+    markerLayer = L.layerGroup().addTo(map);
+    addMapLegend();
+}
+
+function addMapLegend() {
+    const legend = L.control({ position: 'topright' });
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.innerHTML = '<b>Species Groups</b><br>';
+        for (const [key, group] of Object.entries(SPECIES_GROUPS)) {
+            div.innerHTML += `
+                <div class="legend-item">
+                    <span class="legend-dot" style="background:${group.color};"></span>
+                    ${group.label}
+                </div>`;
+        }
+        return div;
+    };
+    legend.addTo(map);
+}
+
+// ── Geolocation ─────────────────────────────────────────────────────
+document.getElementById('btn-geolocate').addEventListener('click', function () {
+    if (!navigator.geolocation) {
+        setStatus('Geolocation not supported on this browser.');
+        return;
+    }
+    setStatus('Getting your location…');
+    navigator.geolocation.getCurrentPosition(
+        function (pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            currentCenter = { lat, lng };
+            map.setView([lat, lng], 10);
+            setStatus(`Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+            loadSightings();
+        },
+        function (err) {
+            setStatus('Could not get location: ' + err.message);
+        },
+        { timeout: 10000 }
+    );
+});
+
+// ── Segment Selector ────────────────────────────────────────────────
+document.getElementById('segment-select').addEventListener('change', function () {
+    const key = this.value;
+    if (!key) return;
+    const seg = ROUTE_SEGMENTS[key];
+    const lat = seg.center.lat;
+    const lng = seg.center.lng;
+    const zoom = seg.default_zoom || 8;
+    currentCenter = { lat, lng };
+    map.setView([lat, lng], zoom);
+    loadSightings();
+});
+
+// ── Load Button ─────────────────────────────────────────────────────
+document.getElementById('btn-load').addEventListener('click', function () {
+    if (!currentCenter) {
+        setStatus('Select a route segment or use My Location first.');
+        return;
+    }
+    loadSightings();
+});
+
+// ── Fetch Sightings ─────────────────────────────────────────────────
+async function loadSightings() {
+    if (!currentCenter) return;
+
+    if (!activeSources.has('inaturalist')) {
+        setStatus('iNaturalist source is disabled.');
+        clearMarkers();
+        renderFeed([]);
+        return;
+    }
+
+    const radius = document.getElementById('radius-select').value;
+    const days = document.getElementById('days-select').value;
+    const checkedGroups = Array.from(
+        document.querySelectorAll('.species-check:checked')
+    ).map(el => el.value);
+
+    if (checkedGroups.length === 0) {
+        setStatus('Select at least one species group.');
+        return;
+    }
+
+    setStatus('<i class="fas fa-spinner fa-spin me-1"></i>Loading sightings…');
+
+    const params = new URLSearchParams({
+        lat: currentCenter.lat,
+        lng: currentCenter.lng,
+        radius,
+        days,
+    });
+    checkedGroups.forEach(g => params.append('groups', g));
+
+    try {
+        const response = await fetch(`/sightings?${params.toString()}`);
+        if (!response.ok) throw new Error(`Server error ${response.status}`);
+        const data = await response.json();
+
+        clearMarkers();
+        renderFeed(data.observations || []);
+        let dotCount = 0;
+        try {
+            dotCount = renderMarkers(data.observations || []);
+        } catch (err) {
+            console.error('renderMarkers threw:', err);
+            setStatus(`renderMarkers error: ${err.message}`);
+            return;
+        }
+        const cacheNote = data._cache_age_hours
+            ? ` (cached ${data._cache_age_hours}h ago)`
+            : '';
+        setStatus(`${data.total || 0} sightings · ${dotCount} on map${cacheNote}`);
+
+    } catch (err) {
+        setStatus('Failed to load sightings. Check connection.');
+        console.error('loadSightings outer catch:', err);
+    }
+}
+
+// ── Markers ─────────────────────────────────────────────────────────
+function clearMarkers() {
+    if (markerLayer) {
+        map.removeLayer(markerLayer);
+    }
+    markerLayer = L.layerGroup().addTo(map);
+}
+
+function renderMarkers(observations) {
+    let added = 0;
+    for (const obs of observations) {
+        if (obs.lat == null || obs.lng == null) continue;
+        const group = SPECIES_GROUPS[obs.group] || {};
+        const color = group.color || '#aaa';
+        const marker = L.circleMarker([obs.lat, obs.lng], {
+            radius: 9,
+            fillColor: color,
+            color: '#fff',
+            weight: 1.5,
+            opacity: 1,
+            fillOpacity: 0.85,
+        });
+        const photoHtml = obs.photo_url
+            ? `<img src="${obs.photo_url}" class="popup-photo mb-1"><br>`
+            : '';
+        marker.bindPopup(
+            `${photoHtml}<strong>${obs.common_name}</strong><br>` +
+            `<em>${obs.species_name}</em><br>` +
+            `${obs.place_guess ? obs.place_guess + '<br>' : ''}` +
+            `<span class="text-muted">${obs.observed_on}</span><br>` +
+            `Observer: ${obs.observer}<br>` +
+            `<a href="${obs.inaturalist_url}" target="_blank" rel="noopener">View on iNaturalist ↗</a>`
+        );
+        markerLayer.addLayer(marker);
+        added++;
+    }
+    return added;
+}
+
+// ── Feed ─────────────────────────────────────────────────────────────
+function renderFeed(observations) {
+    const feedList = document.getElementById('feed-list');
+    const feedCount = document.getElementById('feed-count');
+
+    feedCount.textContent = observations.length;
+
+    if (observations.length === 0) {
+        feedList.innerHTML = '<div class="text-secondary text-center py-4 small">No sightings found for this area and time range.</div>';
+        return;
+    }
+
+    feedList.innerHTML = observations.map(obs => {
+        const group = SPECIES_GROUPS[obs.group] || {};
+        const color = group.color || '#aaa';
+        const distText = currentCenter && obs.lat != null
+            ? ` · ${haversineMiles(currentCenter.lat, currentCenter.lng, obs.lat, obs.lng).toFixed(1)} mi`
+            : '';
+
+        return `
+        <div class="feed-item border-bottom border-secondary px-3 py-2"
+             onclick="zoomToObs(${obs.lat}, ${obs.lng})">
+            <div class="d-flex align-items-start gap-2">
+                <span class="species-dot flex-shrink-0" style="background:${color};"></span>
+                <div class="flex-grow-1 min-width-0">
+                    <div class="fw-semibold text-light text-truncate">${obs.common_name}</div>
+                    <div class="text-secondary small text-truncate">
+                        ${obs.place_guess || 'Location unknown'}
+                    </div>
+                    <div class="text-secondary small">
+                        ${obs.observed_on}${distText}
+                    </div>
+                </div>
+                ${obs.photo_url
+                    ? `<img src="${obs.photo_url.replace('medium','square')}"
+                            class="feed-thumb flex-shrink-0" alt="">`
+                    : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function zoomToObs(lat, lng) {
+    if (lat == null || lng == null) return;
+    map.setView([lat, lng], 13);
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function setStatus(html) {
+    document.getElementById('status-text').innerHTML = html;
+}
+
+function haversineMiles(lat1, lng1, lat2, lng2) {
+    const R = 3958.8; // Earth radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) *
+        Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ── Conditions Card ──────────────────────────────────────────────────
+async function loadConditions() {
+    try {
+        const resp = await fetch('/local-conditions');
+        const data = await resp.json();
+        renderConditions(data);
+    } catch (e) {
+        document.getElementById('conditions-content').innerHTML =
+            '<span class="text-secondary small">Could not load ADF&amp;G conditions.</span>';
+    }
+}
+
+function renderConditions(data) {
+    const content = document.getElementById('conditions-content');
+    const updated = document.getElementById('conditions-updated');
+
+    if (!data || data.available === false) {
+        content.innerHTML = '<span class="text-secondary small fst-italic">ADF&amp;G conditions unavailable.</span>';
+        return;
+    }
+
+    // "Last updated" label
+    if (data._cache_age_hours != null) {
+        updated.textContent = `${data._cache_age_hours}h ago`;
+    } else if (data.report_date) {
+        updated.textContent = data.report_date;
+    }
+
+    let html = '';
+
+    // AI conditions summary
+    const summary = data.ai_summary?.conditions_summary;
+    if (summary) {
+        html += `<p class="mb-2">${summary}</p>`;
+    }
+
+    // AI-extracted sightings
+    const sightings = data.ai_summary?.sightings || [];
+    if (sightings.length) {
+        html += `<div class="mb-2"><span class="text-warning fw-semibold">Sightings: </span>`;
+        html += sightings.map(s => `<span class="conditions-tag">${s}</span>`).join(' ');
+        html += `</div>`;
+    }
+
+    // Emergency orders / alerts
+    const eos = data.emergency_orders || [];
+    const aiAlerts = data.ai_summary?.alerts || [];
+    if (eos.length || aiAlerts.length) {
+        html += `<div class="mt-1"><span class="text-danger fw-semibold small">
+            <i class="fas fa-exclamation-triangle me-1"></i>Orders & Alerts</span>
+            <ul class="conditions-alert-list mt-1">`;
+        eos.slice(0, 4).forEach(eo => {
+            html += `<li><a href="${eo.url}" target="_blank" rel="noopener"
+                class="text-warning small">${eo.title}</a></li>`;
+        });
+        aiAlerts.slice(0, 3).forEach(a => {
+            html += `<li class="text-secondary small">${a}</li>`;
+        });
+        html += `</ul></div>`;
+    }
+
+    // Areas covered
+    if (data.areas_covered?.length) {
+        html += `<div class="mt-2 text-secondary" style="font-size:11px;">
+            Areas: ${data.areas_covered.join(' · ')}</div>`;
+    }
+
+    content.innerHTML = html || '<span class="text-secondary small fst-italic">No conditions data.</span>';
+}
+
+// ── Sources ──────────────────────────────────────────────────────────
+async function loadSources() {
+    try {
+        const resp = await fetch('/sources');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        renderSources(data.sources || []);
+    } catch (e) {
+        console.warn('Could not load sources:', e);
+    }
+}
+
+function renderSources(sources) {
+    const container = document.getElementById('sources-list');
+    container.innerHTML = sources.map(src => {
+        if (src.available) {
+            const checked = activeSources.has(src.id) ? 'checked' : '';
+            const age = src.cache_age_hours != null
+                ? `<span class="source-age">${src.cache_age_hours}h ago</span>`
+                : '';
+            return `
+            <label class="source-pill source-pill--active" title="${src.description}">
+                <input type="checkbox" class="source-check d-none"
+                       data-source="${src.id}" ${checked}>
+                <span class="source-dot source-dot--active"></span>
+                <span class="source-name">${src.name}</span>${age}
+            </label>`;
+        } else {
+            return `
+            <span class="source-pill source-pill--soon" title="${src.description} — coming soon">
+                <span class="source-dot source-dot--soon"></span>
+                <span class="source-name">${src.name}</span>
+                <span class="source-age">Soon</span>
+            </span>`;
+        }
+    }).join('');
+
+    // Wire toggle handlers
+    container.querySelectorAll('.source-check').forEach(chk => {
+        chk.addEventListener('change', function () {
+            if (this.checked) {
+                activeSources.add(this.dataset.source);
+            } else {
+                activeSources.delete(this.dataset.source);
+            }
+            this.closest('.source-pill').classList.toggle('source-pill--off', !this.checked);
+        });
+    });
+
+    // Apply initial off state for any unchecked sources
+    container.querySelectorAll('.source-check').forEach(chk => {
+        if (!chk.checked) {
+            chk.closest('.source-pill').classList.add('source-pill--off');
+        }
+    });
+}
+
+// ── Init ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    initMap();
+    loadSources();
+    loadConditions();
+});
+</script>
+{% endblock %}
