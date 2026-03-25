@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>{% block title %}Alaska Megafauna Tracker{% endblock %}</title>
+    <title>{% block title %}Megafauna Tracker{% endblock %}</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
@@ -26,7 +26,8 @@
     <nav class="navbar navbar-dark navbar-expand-lg bg-dark py-2">
         <div class="container-fluid px-3">
             <a class="navbar-brand fw-bold" href="/">
-                <i class="fas fa-paw me-2"></i>Alaska Megafauna Tracker
+                <i class="fas fa-paw me-2"></i>Megafauna Tracker
+                <span class="badge bg-secondary ms-2 fw-normal" style="font-size:10px;">v{{ app_version }}</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>

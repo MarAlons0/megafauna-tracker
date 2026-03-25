@@ -1,4 +1,4 @@
-# Alaska Megafauna Tracker — Project Backlog
+# Megafauna Tracker — Project Backlog
 
 Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in progress.
 
@@ -32,7 +32,7 @@ Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in p
 
 ## Infrastructure
 
-- [ ] **Deploy to Render** — publish the app on Render so it's accessible outside the house; configure `ANTHROPIC_API_KEY` env var in Render dashboard; verify health check endpoint, cold-start behavior, and cache persistence on Render's ephemeral filesystem
+- [x] **Deploy to Render** — live at https://megafauna-tracker.onrender.com; free tier spins down after 15min inactivity (~30s cold start)
 
 ---
 

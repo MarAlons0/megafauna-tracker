@@ -1,4 +1,4 @@
-# Alaska Megafauna Tracker
+# Megafauna Tracker
 
 Real-time wildlife sighting tracker for a Cincinnati → Alaska road trip. Shows research-grade observations from iNaturalist on an interactive map, filtered by species group, search radius, and time window.
 

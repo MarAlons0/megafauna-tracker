@@ -1,5 +1,5 @@
 """
-Alaska Megafauna Tracker — Flask application.
+Megafauna Tracker — Flask application.
 
 Endpoints:
   GET /                         Main UI
@@ -26,6 +26,8 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+APP_VERSION = '0.3'
+
 
 def create_app():
     template_dir = os.path.join(os.path.dirname(__file__), 'templates')
@@ -33,6 +35,10 @@ def create_app():
 
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     CORS(app)
+
+    @app.context_processor
+    def inject_version():
+        return {'app_version': APP_VERSION}
 
     inaturalist = get_inaturalist()
 
@@ -186,6 +192,7 @@ def create_app():
         return jsonify({
             'status': 'healthy',
             'service': 'megafauna-tracker',
+            'version': APP_VERSION,
             'timestamp': datetime.utcnow().isoformat() + 'Z',
         })
 
