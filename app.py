@@ -65,6 +65,7 @@ def create_app():
         radius = request.args.get('radius', 25, type=int)
         days = request.args.get('days', 30, type=int)
         groups = request.args.getlist('groups')  # e.g. ['bears', 'canids']
+        quality_grade = request.args.get('quality_grade', 'research')
 
         if lat is None or lng is None:
             return jsonify({'error': 'lat and lng are required'}), 400
@@ -80,13 +81,13 @@ def create_app():
         else:
             taxon_ids = ALL_TAXON_IDS
 
-        cache_key = f"sightings_{lat:.4f}_{lng:.4f}_{radius}_{days}_{'_'.join(sorted(groups or ['all']))}"
+        cache_key = f"sightings_{lat:.4f}_{lng:.4f}_{radius}_{days}_{quality_grade}_{'_'.join(sorted(groups or ['all']))}"
         cached = cache_get(cache_key)
         if cached:
             return jsonify(cached)
 
         try:
-            data = inaturalist.get_observations(lat, lng, radius, days, taxon_ids)
+            data = inaturalist.get_observations(lat, lng, radius, days, taxon_ids, quality_grade)
             cache_set(cache_key, data, ttl_hours=1)
             return jsonify(data)
         except Exception as e:

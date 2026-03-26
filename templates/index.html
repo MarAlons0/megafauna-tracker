@@ -44,6 +44,15 @@
             </select>
         </div>
 
+        <!-- Quality Grade -->
+        <div class="col-6 col-md-auto">
+            <select id="quality-select" class="form-select form-select-sm bg-dark text-light border-secondary" title="Observation quality">
+                <option value="research">Verified only</option>
+                <option value="research,needs_id">+ Unconfirmed</option>
+                <option value="any">All grades</option>
+            </select>
+        </div>
+
         <!-- My Location Button -->
         <div class="col-auto">
             <button id="btn-geolocate" class="btn btn-sm btn-outline-warning" title="Use my location">
@@ -297,6 +306,7 @@ async function loadSightings() {
 
     const radius = document.getElementById('radius-select').value;
     const days = document.getElementById('days-select').value;
+    const qualityGrade = document.getElementById('quality-select').value;
     const checkedGroups = Array.from(
         document.querySelectorAll('.species-check:checked')
     ).map(el => el.value);
@@ -313,6 +323,7 @@ async function loadSightings() {
         lng: currentCenter.lng,
         radius,
         days,
+        quality_grade: qualityGrade,
     });
     checkedGroups.forEach(g => params.append('groups', g));
 
@@ -332,9 +343,10 @@ async function loadSightings() {
             return;
         }
         const cacheNote = data._cache_age_hours
-            ? ` (cached ${data._cache_age_hours}h ago)`
+            ? ` · cached ${data._cache_age_hours}h ago`
             : '';
-        setStatus(`${data.total || 0} sightings · ${dotCount} on map${cacheNote}`);
+        const gradeNote = qualityGrade === 'research' ? '' : ' · incl. unconfirmed';
+        setStatus(`${data.total || 0} sightings · ${dotCount} on map${gradeNote}${cacheNote}`);
 
     } catch (err) {
         setStatus('Failed to load sightings. Check connection.');

@@ -20,16 +20,19 @@ MILES_TO_KM = 1.60934
 class iNaturalistClient:
     """Client for fetching megafauna observations from iNaturalist."""
 
-    def get_observations(self, lat, lng, radius_miles, days, taxon_ids=None):
+    VALID_QUALITY_GRADES = {'research', 'research,needs_id', 'any'}
+
+    def get_observations(self, lat, lng, radius_miles, days, taxon_ids=None, quality_grade='research'):
         """
-        Fetch research-grade observations near a point.
+        Fetch observations near a point.
 
         Args:
             lat: Latitude
             lng: Longitude
             radius_miles: Search radius in miles (converted to km for API)
-            days: Number of days back to search (max 60)
+            days: Number of days back to search
             taxon_ids: List of taxon IDs to filter by. None = all tracked species.
+            quality_grade: 'research' | 'research,needs_id' | 'any'
 
         Returns:
             dict with 'total', 'observations', 'fetched_at'
@@ -37,24 +40,29 @@ class iNaturalistClient:
         if taxon_ids is None:
             taxon_ids = ALL_TAXON_IDS
 
+        if quality_grade not in self.VALID_QUALITY_GRADES:
+            quality_grade = 'research'
+
         radius_km = min(radius_miles * MILES_TO_KM, 200)  # API max ~200km
         days = min(days, 365)
 
         d1 = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%d')
         d2 = datetime.utcnow().strftime('%Y-%m-%d')
 
+        # 'any' means no quality_grade filter — omit the param entirely
         params = {
             'lat': lat,
             'lng': lng,
             'radius': radius_km,
             'd1': d1,
             'd2': d2,
-            'quality_grade': 'research',
             'per_page': 200,
             'order': 'desc',
             'order_by': 'observed_on',
             'photos': 'true',
         }
+        if quality_grade != 'any':
+            params['quality_grade'] = quality_grade
 
         # Add taxon_id params (iNaturalist accepts multiple taxon_id[] values)
         observations = []
@@ -79,6 +87,7 @@ class iNaturalistClient:
         return {
             'total': len(unique),
             'observations': unique,
+            'quality_grade': quality_grade,
             'fetched_at': datetime.utcnow().isoformat() + 'Z',
         }
 
