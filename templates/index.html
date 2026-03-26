@@ -123,6 +123,14 @@
             </div>
         </div>
 
+        <!-- No ADF&G coverage notice (shown when selected segment has no coverage) -->
+        <div id="conditions-no-coverage" class="p-3 border-bottom border-secondary" style="display:none;">
+            <h6 class="mb-1 text-secondary">
+                <i class="fas fa-binoculars me-1"></i>Conditions
+            </h6>
+            <span class="text-secondary small fst-italic">No ADF&amp;G conditions data for this region.</span>
+        </div>
+
         <!-- Live Feed -->
         <div class="feed-panel">
             <div class="feed-header px-3 py-2 border-bottom border-secondary d-flex justify-content-between align-items-center">
@@ -171,6 +179,12 @@ let map;
 let markerLayer;
 let currentCenter = null;  // {lat, lng}
 let activeSources = new Set(['inaturalist']);  // sources the user has enabled
+
+// ADF&G coverage by segment key (null = no coverage for that segment)
+const SEGMENT_ADFG_COVERAGE = {
+    {% for key, seg in route_segments.items() %}'{{ key }}': {{ seg.adfg_coverage | tojson }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
 
 // ── Map Init ────────────────────────────────────────────────────────
 function initMap() {
@@ -229,6 +243,7 @@ document.getElementById('btn-geolocate').addEventListener('click', function () {
 // ── Segment Selector ────────────────────────────────────────────────
 document.getElementById('segment-select').addEventListener('change', function () {
     const key = this.value;
+    updateConditionsVisibility(key);
     if (!key) return;
     const seg = ROUTE_SEGMENTS[key];
     const lat = seg.center.lat;
@@ -238,6 +253,27 @@ document.getElementById('segment-select').addEventListener('change', function ()
     map.setView([lat, lng], zoom);
     loadSightings();
 });
+
+function updateConditionsVisibility(segmentKey) {
+    const card = document.querySelector('.conditions-card');
+    const noCoverage = document.getElementById('conditions-no-coverage');
+
+    // No segment selected ("Anywhere on Route") — show card
+    if (!segmentKey) {
+        card.style.display = '';
+        if (noCoverage) noCoverage.style.display = 'none';
+        return;
+    }
+
+    const hasCoverage = !!SEGMENT_ADFG_COVERAGE[segmentKey];
+    if (hasCoverage) {
+        card.style.display = '';
+        if (noCoverage) noCoverage.style.display = 'none';
+    } else {
+        card.style.display = 'none';
+        if (noCoverage) noCoverage.style.display = '';
+    }
+}
 
 // ── Load Button ─────────────────────────────────────────────────────
 document.getElementById('btn-load').addEventListener('click', function () {

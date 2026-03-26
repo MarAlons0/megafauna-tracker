@@ -107,6 +107,7 @@ ROUTE_SEGMENTS = {
         'description': 'Badlands NP, SD — start of the drive',
         'center': {'lat': 43.8554, 'lng': -102.3397},
         'default_zoom': 8,
+        'adfg_coverage': None,
         'taxon_ids': [
             TAXON_IDS['bison'],
             TAXON_IDS['pronghorn'],
@@ -121,6 +122,7 @@ ROUTE_SEGMENTS = {
         'description': 'Glacier NP, MT',
         'center': {'lat': 48.7596, 'lng': -113.7870},
         'default_zoom': 9,
+        'adfg_coverage': None,
         'taxon_ids': [
             TAXON_IDS['brown_grizzly_bear'],
             TAXON_IDS['black_bear'],
@@ -139,6 +141,7 @@ ROUTE_SEGMENTS = {
         'description': 'BC / Yukon Highway',
         'center': {'lat': 59.0, 'lng': -135.0},
         'default_zoom': 6,
+        'adfg_coverage': None,
         'taxon_ids': [
             TAXON_IDS['moose'],
             TAXON_IDS['caribou'],
@@ -155,6 +158,7 @@ ROUTE_SEGMENTS = {
         'description': 'Cooper Landing, Russian River, Seward',
         'center': {'lat': 60.4893, 'lng': -150.7960},
         'default_zoom': 9,
+        'adfg_coverage': 'region2',
         'taxon_ids': [
             TAXON_IDS['brown_grizzly_bear'],
             TAXON_IDS['black_bear'],
@@ -173,6 +177,7 @@ ROUTE_SEGMENTS = {
         'description': 'Turnagain Arm, Chugach State Park',
         'center': {'lat': 61.2181, 'lng': -149.9003},
         'default_zoom': 9,
+        'adfg_coverage': 'region2',
         'taxon_ids': [
             TAXON_IDS['beluga_whale'],
             TAXON_IDS['dall_sheep'],
@@ -188,6 +193,7 @@ ROUTE_SEGMENTS = {
         'description': 'Denali NP corridor',
         'center': {'lat': 63.3333, 'lng': -150.5000},
         'default_zoom': 8,
+        'adfg_coverage': None,  # ADF&G Region 3 — not yet implemented
         'taxon_ids': [
             TAXON_IDS['brown_grizzly_bear'],
             TAXON_IDS['caribou'],
@@ -205,6 +211,7 @@ ROUTE_SEGMENTS = {
         'description': 'Dalton Highway vicinity',
         'center': {'lat': 66.5, 'lng': -150.0},
         'default_zoom': 7,
+        'adfg_coverage': None,  # ADF&G Region 5 — not yet implemented
         'taxon_ids': [
             TAXON_IDS['caribou'],
             TAXON_IDS['moose'],
