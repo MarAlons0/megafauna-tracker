@@ -22,7 +22,8 @@ class iNaturalistClient:
 
     VALID_QUALITY_GRADES = {'research', 'research,needs_id', 'any'}
 
-    def get_observations(self, lat, lng, radius_miles, days, taxon_ids=None, quality_grade='research'):
+    def get_observations(self, lat, lng, radius_miles, days, taxon_ids=None,
+                         quality_grade='research', page=1):
         """
         Fetch observations near a point.
 
@@ -33,9 +34,10 @@ class iNaturalistClient:
             days: Number of days back to search
             taxon_ids: List of taxon IDs to filter by. None = all tracked species.
             quality_grade: 'research' | 'research,needs_id' | 'any'
+            page: Result page number (1-based; each page = 200 results)
 
         Returns:
-            dict with 'total', 'observations', 'fetched_at'
+            dict with 'total', 'total_available', 'page', 'observations', 'fetched_at'
         """
         if taxon_ids is None:
             taxon_ids = ALL_TAXON_IDS
@@ -43,6 +45,7 @@ class iNaturalistClient:
         if quality_grade not in self.VALID_QUALITY_GRADES:
             quality_grade = 'research'
 
+        page = max(1, int(page))
         radius_km = min(radius_miles * MILES_TO_KM, 200)  # API max ~200km
         days = min(days, 365)
 
@@ -57,6 +60,7 @@ class iNaturalistClient:
             'd1': d1,
             'd2': d2,
             'per_page': 200,
+            'page': page,
             'order': 'desc',
             'order_by': 'observed_on',
             'photos': 'true',
@@ -64,14 +68,15 @@ class iNaturalistClient:
         if quality_grade != 'any':
             params['quality_grade'] = quality_grade
 
-        # Add taxon_id params (iNaturalist accepts multiple taxon_id[] values)
+        # Chunk taxon_ids to stay within URL length limits (30 per request)
         observations = []
-        # Chunk taxon_ids to stay within URL length limits
+        total_available = 0
         chunk_size = 30
         for i in range(0, len(taxon_ids), chunk_size):
             chunk = taxon_ids[i:i + chunk_size]
-            chunk_obs = self._fetch_page(params, chunk)
+            chunk_obs, chunk_total = self._fetch_page(params, chunk)
             observations.extend(chunk_obs)
+            total_available += chunk_total
 
         # De-duplicate by observation ID
         seen = set()
@@ -86,16 +91,21 @@ class iNaturalistClient:
 
         return {
             'total': len(unique),
-            'observations': unique,
+            'total_available': total_available,
+            'page': page,
             'quality_grade': quality_grade,
+            'observations': unique,
             'fetched_at': datetime.utcnow().isoformat() + 'Z',
         }
 
     def _fetch_page(self, base_params, taxon_ids):
-        """Fetch one page of observations for a list of taxon IDs."""
+        """Fetch one page of observations for a list of taxon IDs.
+
+        Returns:
+            tuple: (list of transformed observations, total_results int)
+        """
         try:
             params = dict(base_params)
-            # Build taxon_id[] list
             taxon_params = [('taxon_id[]', tid) for tid in taxon_ids]
 
             response = requests.get(
@@ -107,22 +117,23 @@ class iNaturalistClient:
 
             if response.status_code != 200:
                 logger.error(f"iNaturalist API error: {response.status_code} — {response.text[:300]}")
-                return []
+                return [], 0
 
             data = response.json()
             results = data.get('results', [])
-            logger.info(f"iNaturalist: fetched {len(results)} observations")
-            return [self._transform(r) for r in results]
+            total = data.get('total_results', len(results))
+            logger.info(f"iNaturalist: fetched {len(results)} of {total} available")
+            return [self._transform(r) for r in results], total
 
         except requests.exceptions.Timeout:
             logger.error("iNaturalist API request timed out")
-            return []
+            return [], 0
         except requests.exceptions.RequestException as e:
             logger.error(f"iNaturalist request failed: {e}")
-            return []
+            return [], 0
         except Exception as e:
             logger.error(f"Unexpected error fetching iNaturalist data: {e}")
-            return []
+            return [], 0
 
     def _transform(self, result):
         """Transform raw iNaturalist result into a clean dict."""

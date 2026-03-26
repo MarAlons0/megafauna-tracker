@@ -64,8 +64,10 @@ def create_app():
         lng = request.args.get('lng', type=float)
         radius = request.args.get('radius', 25, type=int)
         days = request.args.get('days', 30, type=int)
-        groups = request.args.getlist('groups')  # e.g. ['bears', 'canids']
+        groups = request.args.getlist('groups')
         quality_grade = request.args.get('quality_grade', 'research')
+        segment = request.args.get('segment', '')
+        page = request.args.get('page', 1, type=int)
 
         if lat is None or lng is None:
             return jsonify({'error': 'lat and lng are required'}), 400
@@ -81,13 +83,27 @@ def create_app():
         else:
             taxon_ids = ALL_TAXON_IDS
 
-        cache_key = f"sightings_{lat:.4f}_{lng:.4f}_{radius}_{days}_{quality_grade}_{'_'.join(sorted(groups or ['all']))}"
+        # Option 4: when a segment is selected, intersect with segment's
+        # priority taxon_ids so results stay relevant to that area
+        if segment and segment in ROUTE_SEGMENTS:
+            seg_ids = set(ROUTE_SEGMENTS[segment].get('taxon_ids', []))
+            intersected = [t for t in taxon_ids if t in seg_ids]
+            if intersected:  # only apply if intersection is non-empty
+                taxon_ids = intersected
+
+        cache_key = (
+            f"sightings_{lat:.4f}_{lng:.4f}_{radius}_{days}"
+            f"_{quality_grade}_{segment or 'any'}_p{page}"
+            f"_{'_'.join(sorted(groups or ['all']))}"
+        )
         cached = cache_get(cache_key)
         if cached:
             return jsonify(cached)
 
         try:
-            data = inaturalist.get_observations(lat, lng, radius, days, taxon_ids, quality_grade)
+            data = inaturalist.get_observations(
+                lat, lng, radius, days, taxon_ids, quality_grade, page
+            )
             cache_set(cache_key, data, ttl_hours=1)
             return jsonify(data)
         except Exception as e:

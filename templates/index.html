@@ -153,6 +153,9 @@
                     Select a location and click Load
                 </div>
             </div>
+            <div class="p-2 border-top border-secondary" id="load-more-container" style="display:none;">
+                <button id="btn-load-more" class="btn btn-sm btn-outline-secondary w-100" style="display:none;"></button>
+            </div>
         </div>
 
     </div>
@@ -188,6 +191,9 @@ let map;
 let markerLayer;
 let currentCenter = null;  // {lat, lng}
 let activeSources = new Set(['inaturalist']);  // sources the user has enabled
+let allObservations = [];   // accumulated across pages
+let currentPage = 1;
+let totalAvailable = 0;
 
 // ADF&G coverage by segment key (null = no coverage for that segment)
 const SEGMENT_ADFG_COVERAGE = {
@@ -294,7 +300,7 @@ document.getElementById('btn-load').addEventListener('click', function () {
 });
 
 // ── Fetch Sightings ─────────────────────────────────────────────────
-async function loadSightings() {
+async function loadSightings(appendPage = false) {
     if (!currentCenter) return;
 
     if (!activeSources.has('inaturalist')) {
@@ -307,6 +313,7 @@ async function loadSightings() {
     const radius = document.getElementById('radius-select').value;
     const days = document.getElementById('days-select').value;
     const qualityGrade = document.getElementById('quality-select').value;
+    const segmentKey = document.getElementById('segment-select').value;
     const checkedGroups = Array.from(
         document.querySelectorAll('.species-check:checked')
     ).map(el => el.value);
@@ -314,6 +321,14 @@ async function loadSightings() {
     if (checkedGroups.length === 0) {
         setStatus('Select at least one species group.');
         return;
+    }
+
+    if (!appendPage) {
+        // Fresh load — reset pagination state
+        currentPage = 1;
+        allObservations = [];
+        totalAvailable = 0;
+        clearMarkers();
     }
 
     setStatus('<i class="fas fa-spinner fa-spin me-1"></i>Loading sightings…');
@@ -324,7 +339,9 @@ async function loadSightings() {
         radius,
         days,
         quality_grade: qualityGrade,
+        page: currentPage,
     });
+    if (segmentKey) params.append('segment', segmentKey);
     checkedGroups.forEach(g => params.append('groups', g));
 
     try {
@@ -332,27 +349,59 @@ async function loadSightings() {
         if (!response.ok) throw new Error(`Server error ${response.status}`);
         const data = await response.json();
 
-        clearMarkers();
-        renderFeed(data.observations || []);
+        // Merge new observations, de-duplicate by id
+        const existingIds = new Set(allObservations.map(o => o.id));
+        const newObs = (data.observations || []).filter(o => !existingIds.has(o.id));
+        allObservations = allObservations.concat(newObs);
+        totalAvailable = data.total_available || data.total || 0;
+
+        if (!appendPage) clearMarkers();
+        renderFeed(allObservations);
         let dotCount = 0;
         try {
-            dotCount = renderMarkers(data.observations || []);
+            dotCount = appendPage
+                ? renderMarkers(newObs)           // add new dots only
+                : renderMarkers(allObservations);  // full render
         } catch (err) {
             console.error('renderMarkers threw:', err);
             setStatus(`renderMarkers error: ${err.message}`);
             return;
         }
+
         const cacheNote = data._cache_age_hours
-            ? ` · cached ${data._cache_age_hours}h ago`
-            : '';
+            ? ` · cached ${data._cache_age_hours}h ago` : '';
         const gradeNote = qualityGrade === 'research' ? '' : ' · incl. unconfirmed';
-        setStatus(`${data.total || 0} sightings · ${dotCount} on map${gradeNote}${cacheNote}`);
+        const totalNote = totalAvailable > allObservations.length
+            ? ` of ${totalAvailable.toLocaleString()} available` : '';
+        setStatus(`${allObservations.length}${totalNote} sightings · ${dotCount} on map${gradeNote}${cacheNote}`);
+
+        updateLoadMoreButton();
 
     } catch (err) {
         setStatus('Failed to load sightings. Check connection.');
         console.error('loadSightings outer catch:', err);
     }
 }
+
+function updateLoadMoreButton() {
+    const btn = document.getElementById('btn-load-more');
+    const container = document.getElementById('load-more-container');
+    if (!btn || !container) return;
+    const remaining = totalAvailable - allObservations.length;
+    if (remaining > 0) {
+        container.style.display = '';
+        btn.style.display = '';
+        btn.textContent = `Load more (${remaining.toLocaleString()} remaining)`;
+    } else {
+        container.style.display = 'none';
+        btn.style.display = 'none';
+    }
+}
+
+document.getElementById('btn-load-more').addEventListener('click', function () {
+    currentPage++;
+    loadSightings(true);
+});
 
 // ── Markers ─────────────────────────────────────────────────────────
 function clearMarkers() {
