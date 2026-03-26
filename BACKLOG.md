@@ -14,7 +14,7 @@ Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in p
 
 ## Data & Sources
 
-- [ ] **iNaturalist quality grade selector** — add a toggle to the controls bar (Research Grade only / + Needs ID / All); pass `quality_grade` param through to the iNaturalist API; default stays Research Grade; "Needs ID" typically adds 3–5× more observations, especially valuable for remote Alaska segments where research-grade confirmations are sparse
+- [x] **iNaturalist quality grade selector** — add a toggle to the controls bar (Research Grade only / + Needs ID / All); pass `quality_grade` param through to the iNaturalist API; default stays Research Grade; "Needs ID" typically adds 3–5× more observations, especially valuable for remote Alaska segments where research-grade confirmations are sparse
 
 - [x] **Source visibility and selection** — show which data sources are active in the UI; allow user to toggle sources on/off (iNaturalist, ADF&G fish counts, ADF&G reports, Forums); display freshness per source
 - [ ] **Expand to all of North America** — remove the Alaska/road-trip framing as the primary scope; make the app useful anywhere in North America; revisit species list, route segments, and default map center accordingly
