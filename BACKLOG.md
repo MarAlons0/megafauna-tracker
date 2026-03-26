@@ -26,6 +26,8 @@ Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in p
 
 - [ ] **AI Analysis page** — dedicated page (mirroring Bird Tracker's AI page) with: Claude-generated summary of current observations in the selected area; trend analysis (species activity up/down, notable patterns); conversational interface to query the data (e.g., "What bears have been seen within 20 miles in the last 2 weeks?", "Is activity higher than usual for this time of year?")
 - [ ] **Bear activity forecast** — use ADF&G weir count + current date/season as context for a Claude-generated 2-sentence bear activity prediction; surface in the Conditions card (currently shows Phase 2 placeholder)
+- [ ] **Conditions card — hide when no coverage** — suppress the Conditions card for route segments without ADF&G Region 2 coverage (e.g. Great Plains, Northern Rockies, Canadian Corridor); show only when selected segment is in Southcentral Alaska
+- [ ] **Expand ADF&G coverage to additional regions** — add Region 1 (Southeast AK), Region 3 (Interior/Denali), and Region 5 (Fairbanks/North) report scrapers; same HTML structure as Region 2, different area keys; makes Conditions card location-aware for all Alaska segments
 - [x] **Conditions card — activate** — wire up the Conditions card in the sidebar to display live ADF&G + AI output once scrapers and summarizer are implemented
 
 ---
