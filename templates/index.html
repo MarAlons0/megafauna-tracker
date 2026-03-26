@@ -299,6 +299,20 @@ document.getElementById('btn-load').addEventListener('click', function () {
     loadSightings();
 });
 
+// Auto-reload when species checkboxes change (if a location is already loaded)
+document.querySelectorAll('.species-check').forEach(chk => {
+    chk.addEventListener('change', function () {
+        if (currentCenter) loadSightings();
+    });
+});
+
+// Auto-reload when radius, days, or quality grade change
+['radius-select', 'days-select', 'quality-select'].forEach(id => {
+    document.getElementById(id).addEventListener('change', function () {
+        if (currentCenter) loadSightings();
+    });
+});
+
 // ── Fetch Sightings ─────────────────────────────────────────────────
 async function loadSightings(appendPage = false) {
     if (!currentCenter) return;
