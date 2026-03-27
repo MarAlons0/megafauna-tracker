@@ -252,13 +252,19 @@ html, body {
     right: 10px;
     z-index: 1000;
     background: rgba(26, 26, 46, 0.88);
-    border: 1px solid #555;
+    border: 1px solid #777;
     color: #e0e0e0;
-    border-radius: 4px;
-    padding: 7px 9px;
-    font-size: 15px;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
     cursor: pointer;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 500;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 
 #btn-fullscreen-map:hover {
