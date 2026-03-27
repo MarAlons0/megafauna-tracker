@@ -292,6 +292,43 @@ body.map-is-fullscreen .main-layout {
     height: 100dvh;
 }
 
+/* ── Analysis Page ───────────────────────────────────────────────── */
+body.analysis-page {
+    overflow: auto;
+    height: auto;
+}
+
+body.analysis-page .main-layout {
+    height: auto;
+    overflow: visible;
+}
+
+/* Chat bubbles */
+.chat-bubble {
+    max-width: 88%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+    word-wrap: break-word;
+}
+
+.chat-bubble--user {
+    background-color: #2a4a7f;
+    color: #e8f0ff;
+    margin-left: auto;
+    border-bottom-right-radius: 3px;
+}
+
+.chat-bubble--bot {
+    background-color: #2a2a3e;
+    color: #d0d0e0;
+    margin-right: auto;
+    border-bottom-left-radius: 3px;
+    border: 1px solid #383858;
+}
+
 /* ── Location Search Suggestions ────────────────────────────────── */
 .search-suggestion {
     cursor: pointer;

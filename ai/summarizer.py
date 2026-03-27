@@ -124,35 +124,124 @@ class MegafaunaSummarizer:
             logger.error(f"Report summarization error: {e}")
             return None
 
-    def chat(self, message, sightings_context=''):
+    def analyze_observations(self, location_name, radius_miles, days,
+                              observations, bucket_data, adfg_context=None):
         """
-        Phase 3 chatbot — answer questions about recent sightings.
+        Generate a wildlife intelligence briefing from iNaturalist observations.
 
         Args:
-            message: User question
-            sightings_context: Recent sightings summary string
+            location_name: Human-readable location string
+            radius_miles: Search radius in miles
+            days: Time window in days
+            observations: List of observation dicts from iNaturalist
+            bucket_data: List of {period, species: {name: count}} dicts (recent first)
+            adfg_context: Optional ADF&G conditions summary string
+
+        Returns:
+            str: Markdown-formatted briefing, or None on error
+        """
+        if not self.client:
+            return None
+
+        today = datetime.utcnow().strftime('%B %d, %Y')
+        month = datetime.utcnow().strftime('%B')
+
+        # Species totals
+        species_counts = {}
+        for obs in observations:
+            name = obs.get('common_name') or obs.get('species_name', 'Unknown')
+            species_counts[name] = species_counts.get(name, 0) + 1
+
+        species_lines = '\n'.join(
+            f"  {name}: {count}"
+            for name, count in sorted(species_counts.items(), key=lambda x: -x[1])
+        )
+
+        # Time-bucketed trends
+        bucket_lines = []
+        for bucket in bucket_data:
+            if bucket.get('species'):
+                top = sorted(bucket['species'].items(), key=lambda x: -x[1])
+                species_str = ', '.join(f"{s} ({c})" for s, c in top[:8])
+                bucket_lines.append(f"  {bucket['period']}: {species_str}")
+        trend_text = '\n'.join(bucket_lines) if bucket_lines else '  No time-bucketed data available.'
+
+        adfg_section = f"\nADF&G CONDITIONS REPORT:\n{adfg_context}\n" if adfg_context else ""
+
+        prompt = f"""Today is {today}. Analyze iNaturalist wildlife observations within {radius_miles} miles of {location_name} over the past {days} days.
+
+SPECIES TOTALS ({len(observations)} observations):
+{species_lines}
+
+OBSERVATIONS BY PERIOD (most recent first):
+{trend_text}
+{adfg_section}
+Write a wildlife intelligence briefing with exactly these five sections. Be specific — cite actual species names and counts from the data. Avoid generic statements.
+
+**Overview**
+2–3 sentences on overall activity level and the dominant species defining this area right now.
+
+**Trends**
+Which species are increasing or decreasing recently? Highlight accelerations, sudden appearances, or notable absences. If a species appeared heavily in older periods but not recent ones, flag it.
+
+**Notable Sightings**
+Unusual, rare, or geographically interesting records worth highlighting. If nothing stands out, say so briefly.
+
+**Seasonal Context**
+Is this pattern expected for {month}? What does the data suggest about the current season?
+
+**Field Notes**
+Practical guidance for a visitor: safety-relevant activity (bears especially), best viewing opportunities, anything to be aware of."""
+
+        try:
+            response = self.client.messages.create(
+                model=self.MODEL,
+                max_tokens=1500,
+                system=(
+                    "You are an expert wildlife naturalist providing concise, data-driven field "
+                    "intelligence briefings. No introductory or closing pleasantries. "
+                    "Stay grounded in the actual observation data provided."
+                ),
+                messages=[{'role': 'user', 'content': prompt}],
+            )
+            return self._extract_text(response)
+        except Exception as e:
+            logger.error(f"Analysis error: {e}")
+            return None
+
+    def chat(self, message, history, observations_context, location_name):
+        """
+        Multi-turn chat grounded in current observation data.
+
+        Args:
+            message: Current user message
+            history: List of {role, content} dicts for prior turns (session only)
+            observations_context: Pre-formatted string summary of observations
+            location_name: Human-readable location string
 
         Returns:
             str: AI response
         """
         if not self.client:
-            return "AI assistant is not available."
+            return "AI assistant is not available — check ANTHROPIC_API_KEY."
 
         system = (
-            "You are a wildlife expert assistant for an Alaska road-trip megafauna tracker. "
-            "Answer questions about wildlife sightings, conditions, and species behavior. "
-            "Be concise and practical — users are viewing this on a phone while traveling."
+            f"You are an expert wildlife naturalist assistant. "
+            f"The user is analyzing megafauna observations near {location_name}.\n\n"
+            f"Current observation data:\n{observations_context}\n\n"
+            "Answer questions based on the observations and your wildlife expertise. "
+            "Be practical and concise — the user may be in the field. "
+            "When answering beyond the observation data, note that you're drawing on general knowledge."
         )
 
-        context = f"Recent sightings context:\n{sightings_context}\n\n" if sightings_context else ""
-        prompt = f"{context}User question: {message}"
+        messages = list(history) + [{'role': 'user', 'content': message}]
 
         try:
             response = self.client.messages.create(
                 model=self.MODEL,
-                max_tokens=400,
+                max_tokens=600,
                 system=system,
-                messages=[{'role': 'user', 'content': prompt}],
+                messages=messages,
             )
             return self._extract_text(response)
         except Exception as e:

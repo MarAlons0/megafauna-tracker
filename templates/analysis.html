@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% block title %}AI Analysis — Megafauna Tracker{% endblock %}
+{% block body_class %}analysis-page{% endblock %}
+
+{% block head %}
+<style>
+html, body.analysis-page { height: auto !important; overflow: auto !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-3" style="max-width: 860px;">
+
+    <!-- Location header -->
+    <div id="location-header" class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h5 class="mb-0 text-light">
+                <i class="fas fa-robot me-2 text-warning"></i>AI Wildlife Analysis
+            </h5>
+            <div id="location-label" class="text-secondary small mt-1">Loading location…</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <button id="btn-reload-analysis" class="btn btn-sm btn-outline-secondary" title="Reload analysis">
+                <i class="fas fa-sync-alt me-1"></i>Reload
+            </button>
+            <a href="/" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-map me-1"></i>Back to Map
+            </a>
+        </div>
+    </div>
+
+    <!-- No location notice -->
+    <div id="no-location-notice" class="alert alert-secondary" style="display:none;">
+        <i class="fas fa-map-marker-alt me-2"></i>
+        No location loaded. <a href="/" class="alert-link">Go to the map</a>, search a location and load sightings, then return here.
+    </div>
+
+    <!-- Analysis Card -->
+    <div class="card bg-dark border-secondary mb-3" id="analysis-card" style="display:none;">
+        <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+            <span class="text-warning fw-semibold">
+                <i class="fas fa-binoculars me-1"></i>Wildlife Briefing
+            </span>
+            <span id="analysis-meta" class="text-secondary small"></span>
+        </div>
+        <div class="card-body">
+            <div id="analysis-loading" class="text-secondary small fst-italic py-2">
+                <i class="fas fa-spinner fa-spin me-1"></i>Generating briefing…
+            </div>
+            <div id="analysis-content" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- Chat Card -->
+    <div class="card bg-dark border-secondary" id="chat-card" style="display:none;">
+        <div class="card-header border-secondary">
+            <span class="text-warning fw-semibold">
+                <i class="fas fa-comments me-1"></i>Ask a Question
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div id="chat-messages" class="p-3"
+                 style="min-height: 80px; max-height: 50vh; overflow-y: auto;">
+                <!-- messages injected here -->
+            </div>
+            <div class="border-top border-secondary p-2 d-flex gap-2">
+                <input type="text" id="chat-input"
+                       class="form-control form-control-sm bg-dark text-light border-secondary"
+                       placeholder="Ask about the wildlife here…"
+                       autocomplete="off">
+                <button id="btn-send" class="btn btn-sm btn-warning text-dark fw-semibold px-3">
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── State ────────────────────────────────────────────────────────────
+let locationState = null;    // {lat, lng, name, radius, days, quality_grade, groups}
+let allObservations = [];
+let chatHistory = [];        // [{role, content}] — session only
+let observationsContext = '';
+
+// ── Init ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async function () {
+    const stored = localStorage.getItem('megafauna_location');
+    if (!stored) {
+        document.getElementById('no-location-notice').style.display = '';
+        return;
+    }
+    locationState = JSON.parse(stored);
+    document.getElementById('location-label').textContent =
+        `${locationState.name} · ${locationState.radius} mi · ${locationState.days} days`;
+    document.getElementById('analysis-card').style.display = '';
+    document.getElementById('chat-card').style.display = '';
+    await loadAndAnalyze();
+});
+
+document.getElementById('btn-reload-analysis').addEventListener('click', loadAndAnalyze);
+
+// ── Fetch observations + run analysis ────────────────────────────────
+async function loadAndAnalyze() {
+    showAnalysisLoading();
+    clearChat();
+
+    // 1. Fetch observations from /sightings
+    try {
+        const params = new URLSearchParams({
+            lat: locationState.lat,
+            lng: locationState.lng,
+            radius: locationState.radius,
+            days: locationState.days,
+            quality_grade: locationState.quality_grade || 'research',
+            page: 1,
+        });
+        (locationState.groups || []).forEach(g => params.append('groups', g));
+
+        const resp = await fetch(`/sightings?${params}`);
+        const data = await resp.json();
+        allObservations = data.observations || [];
+
+        document.getElementById('analysis-meta').textContent =
+            `${allObservations.length} observations`;
+    } catch (e) {
+        showAnalysisError('Could not fetch observations.');
+        return;
+    }
+
+    if (allObservations.length === 0) {
+        showAnalysisError('No observations found for this location and time window. Try increasing the radius or time window on the map.');
+        return;
+    }
+
+    // 2. Build observations context string (for chat)
+    observationsContext = buildObservationsContext(allObservations, locationState);
+
+    // 3. Compute time buckets
+    const bucketData = bucketObservations(allObservations, locationState.days);
+
+    // 4. Fetch ADF&G conditions if available
+    let adfgContext = null;
+    try {
+        const cr = await fetch('/local-conditions');
+        const cd = await cr.json();
+        if (cd && cd.available !== false && cd.ai_summary) {
+            const s = cd.ai_summary;
+            const parts = [];
+            if (s.conditions_summary) parts.push(s.conditions_summary);
+            if (s.sightings?.length) parts.push('Sightings: ' + s.sightings.join(', '));
+            if (s.alerts?.length) parts.push('Alerts: ' + s.alerts.join(', '));
+            if (parts.length) adfgContext = parts.join(' | ');
+        }
+    } catch (_) {}
+
+    // 5. POST to /api/analyze
+    try {
+        const resp = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                location_name: locationState.name,
+                radius: locationState.radius,
+                days: locationState.days,
+                observations: allObservations,
+                bucket_data: bucketData,
+                adfg_context: adfgContext,
+            }),
+        });
+        const data = await resp.json();
+        if (data.error) { showAnalysisError(data.error); return; }
+        renderAnalysis(data.analysis || '');
+    } catch (e) {
+        showAnalysisError('Analysis request failed.');
+    }
+}
+
+// ── Time bucketing ───────────────────────────────────────────────────
+function bucketObservations(observations, days) {
+    let bucketDays, fmt;
+    if (days <= 30)       { bucketDays = 7;  fmt = 'week'; }
+    else if (days <= 60)  { bucketDays = 14; fmt = '2-week'; }
+    else if (days <= 180) { bucketDays = 30; fmt = 'month'; }
+    else                  { bucketDays = 60; fmt = '2-month'; }
+
+    const now = Date.now();
+    const numBuckets = Math.ceil(days / bucketDays);
+    const buckets = [];
+
+    for (let i = 0; i < numBuckets; i++) {
+        const endMs  = now - i * bucketDays * 86400000;
+        const startMs = now - (i + 1) * bucketDays * 86400000;
+        const endDate  = new Date(endMs);
+        const startDate = new Date(startMs);
+        buckets.push({
+            period: i === 0
+                ? `Last ${bucketDays} days`
+                : startDate.toLocaleDateString('en-US', {month:'short', day:'numeric'}) +
+                  '–' + endDate.toLocaleDateString('en-US', {month:'short', day:'numeric'}),
+            startMs,
+            endMs,
+            species: {},
+        });
+    }
+
+    for (const obs of observations) {
+        if (!obs.observed_on) continue;
+        const t = new Date(obs.observed_on).getTime();
+        for (const b of buckets) {
+            if (t >= b.startMs && t < b.endMs) {
+                const name = obs.common_name || obs.species_name;
+                b.species[name] = (b.species[name] || 0) + 1;
+                break;
+            }
+        }
+    }
+
+    return buckets
+        .filter(b => Object.keys(b.species).length > 0)
+        .map(b => ({ period: b.period, species: b.species }));
+}
+
+// ── Observations context string (for chat) ───────────────────────────
+function buildObservationsContext(observations, state) {
+    const counts = {};
+    const recent = {};
+    for (const obs of observations) {
+        const name = obs.common_name || obs.species_name;
+        counts[name] = (counts[name] || 0) + 1;
+        if (!recent[name] || obs.observed_on > recent[name]) recent[name] = obs.observed_on;
+    }
+    const lines = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, n]) => `${name}: ${n} sighting${n>1?'s':''} (last: ${recent[name]})`);
+    return `${observations.length} observations within ${state.radius} mi of ${state.name} over ${state.days} days.\n` + lines.join('\n');
+}
+
+// ── Render analysis ──────────────────────────────────────────────────
+function renderAnalysis(text) {
+    document.getElementById('analysis-loading').style.display = 'none';
+    const el = document.getElementById('analysis-content');
+    el.style.display = '';
+    // Convert **Header** to styled section headers, \n\n to paragraphs
+    let html = escHtml(text)
+        .replace(/\*\*(.+?)\*\*/g, '<strong class="text-warning d-block mt-3 mb-1">$1</strong>')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>');
+    el.innerHTML = `<div class="text-light small lh-lg">${html}</div>`;
+
+    // Add initial chat greeting after analysis loads
+    appendBotMessage(`Briefing ready. Ask me anything about the wildlife near ${locationState.name} — activity patterns, species behavior, safety, or what to look for.`);
+}
+
+function showAnalysisLoading() {
+    document.getElementById('analysis-loading').style.display = '';
+    document.getElementById('analysis-loading').innerHTML =
+        '<i class="fas fa-spinner fa-spin me-1"></i>Generating briefing…';
+    document.getElementById('analysis-content').style.display = 'none';
+}
+
+function showAnalysisError(msg) {
+    document.getElementById('analysis-loading').style.display = '';
+    document.getElementById('analysis-loading').innerHTML =
+        `<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>${escHtml(msg)}</span>`;
+    document.getElementById('analysis-content').style.display = 'none';
+}
+
+// ── Chat ─────────────────────────────────────────────────────────────
+document.getElementById('btn-send').addEventListener('click', sendMessage);
+document.getElementById('chat-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
+});
+
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = '';
+
+    appendUserMessage(message);
+    chatHistory.push({role: 'user', content: message});
+
+    const thinkingEl = appendBotMessage('…');
+
+    try {
+        const resp = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message,
+                history: chatHistory.slice(0, -1),  // exclude current user msg (sent separately)
+                observations_context: observationsContext,
+                location_name: locationState.name,
+            }),
+        });
+        const data = await resp.json();
+        const reply = data.response || data.error || 'No response.';
+        thinkingEl.textContent = reply;
+        chatHistory.push({role: 'assistant', content: reply});
+    } catch (e) {
+        thinkingEl.textContent = 'Request failed. Please try again.';
+        chatHistory.pop(); // remove the user message since we couldn't respond
+    }
+
+    scrollChatToBottom();
+}
+
+function appendUserMessage(text) {
+    const el = document.createElement('div');
+    el.className = 'chat-bubble chat-bubble--user';
+    el.textContent = text;
+    document.getElementById('chat-messages').appendChild(el);
+    scrollChatToBottom();
+    return el;
+}
+
+function appendBotMessage(text) {
+    const el = document.createElement('div');
+    el.className = 'chat-bubble chat-bubble--bot';
+    el.textContent = text;
+    document.getElementById('chat-messages').appendChild(el);
+    scrollChatToBottom();
+    return el;
+}
+
+function scrollChatToBottom() {
+    const el = document.getElementById('chat-messages');
+    el.scrollTop = el.scrollHeight;
+}
+
+function clearChat() {
+    document.getElementById('chat-messages').innerHTML = '';
+    chatHistory = [];
+}
+
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+{% endblock %}

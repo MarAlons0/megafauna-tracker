@@ -591,6 +591,21 @@ async function loadSightings(appendPage = false) {
 
         updateLoadMoreButton();
 
+        // Persist location state for the Analysis page
+        const locationName = document.getElementById('location-search').value.trim()
+            || document.getElementById('segment-select').options[
+                document.getElementById('segment-select').selectedIndex].text.replace('— Quick Picks —', '').trim()
+            || `${currentCenter.lat.toFixed(3)}, ${currentCenter.lng.toFixed(3)}`;
+        localStorage.setItem('megafauna_location', JSON.stringify({
+            lat: currentCenter.lat,
+            lng: currentCenter.lng,
+            name: locationName,
+            radius: parseInt(radius),
+            days: parseInt(days),
+            quality_grade: qualityGrade,
+            groups: drillGroup ? [] : Array.from(document.querySelectorAll('.species-group-check:checked')).map(e => e.value),
+        }));
+
     } catch (err) {
         setStatus('Failed to load sightings. Check connection.');
         console.error('loadSightings outer catch:', err);

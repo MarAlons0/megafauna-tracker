@@ -233,6 +233,66 @@ def create_app():
             })
         return jsonify({'sources': result})
 
+    @app.route('/analysis')
+    def analysis():
+        return render_template('analysis.html')
+
+    @app.route('/api/analyze', methods=['POST'])
+    def api_analyze():
+        """Generate a wildlife intelligence briefing from posted observations."""
+        body = request.get_json(force=True) or {}
+        location_name = body.get('location_name', 'this area')
+        radius_miles = body.get('radius', 25)
+        days = body.get('days', 30)
+        observations = body.get('observations', [])
+        bucket_data = body.get('bucket_data', [])
+        adfg_context = body.get('adfg_context')
+
+        if not observations:
+            return jsonify({'error': 'No observations provided'}), 400
+
+        try:
+            from ai.summarizer import get_summarizer
+            summarizer = get_summarizer()
+            if not summarizer.is_available:
+                return jsonify({'error': 'AI unavailable — check ANTHROPIC_API_KEY'}), 503
+            text = summarizer.analyze_observations(
+                location_name, radius_miles, days,
+                observations, bucket_data, adfg_context
+            )
+            return jsonify({'analysis': text})
+        except Exception as e:
+            logger.error(f"Analyze error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/chat', methods=['POST'])
+    def api_chat():
+        """Multi-turn chat grounded in observation context."""
+        body = request.get_json(force=True) or {}
+        message = (body.get('message') or '').strip()
+        history = body.get('history', [])
+        observations_context = body.get('observations_context', '')
+        location_name = body.get('location_name', 'this area')
+
+        if not message:
+            return jsonify({'error': 'message is required'}), 400
+
+        # Sanitize history to only allowed roles
+        history = [
+            {'role': h['role'], 'content': h['content']}
+            for h in history
+            if h.get('role') in ('user', 'assistant') and h.get('content')
+        ]
+
+        try:
+            from ai.summarizer import get_summarizer
+            summarizer = get_summarizer()
+            reply = summarizer.chat(message, history, observations_context, location_name)
+            return jsonify({'response': reply})
+        except Exception as e:
+            logger.error(f"Chat error: {e}")
+            return jsonify({'error': str(e)}), 500
+
     @app.route('/health')
     def health():
         return jsonify({
