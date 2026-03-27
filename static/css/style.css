@@ -147,6 +147,7 @@ html, body {
     height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.6);
 }
 
 /* ── Dark form controls ──────────────────────────────────────────── */
@@ -242,6 +243,28 @@ html, body {
 .source-age {
     color: #888;
     font-size: 11px;
+}
+
+/* ── Location Search Suggestions ────────────────────────────────── */
+.search-suggestion {
+    cursor: pointer;
+    color: #ccc;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    line-height: 1.4;
+}
+
+.search-suggestion:last-child {
+    border-bottom: none;
+}
+
+.search-suggestion:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+/* Dark style for the search input */
+#location-search::placeholder {
+    color: #666;
 }
 
 /* ── Mobile layout ───────────────────────────────────────────────── */

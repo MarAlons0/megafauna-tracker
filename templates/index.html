@@ -6,12 +6,42 @@
 
 <!-- ── Controls Bar ────────────────────────────────────────────── -->
 <div class="controls-bar bg-dark border-bottom border-secondary py-2 px-3">
-    <div class="row g-2 align-items-center">
 
-        <!-- Route Segment -->
-        <div class="col-6 col-md-3">
-            <select id="segment-select" class="form-select form-select-sm bg-dark text-light border-secondary">
-                <option value="">— Anywhere on Route —</option>
+    <!-- Location Search Row -->
+    <div class="row g-2 align-items-center">
+        <div class="col position-relative">
+            <div class="input-group input-group-sm">
+                <input type="text" id="location-search"
+                       class="form-control bg-dark text-light border-secondary"
+                       placeholder="Search any location in North America…"
+                       autocomplete="off" autocorrect="off" spellcheck="false">
+                <button id="btn-search" class="btn btn-outline-secondary" type="button" title="Search">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+            <div id="search-suggestions"
+                 class="position-absolute bg-dark border border-secondary rounded-2 mt-1"
+                 style="display:none; top:100%; left:0; right:0; z-index:1050; max-height:220px; overflow-y:auto;">
+            </div>
+        </div>
+        <div class="col-auto">
+            <button id="btn-geolocate" class="btn btn-sm btn-outline-warning" title="Use my location">
+                <i class="fas fa-crosshairs"></i>
+                <span class="d-none d-md-inline ms-1">My Location</span>
+            </button>
+        </div>
+        <div class="col-12 col-md-auto ms-md-auto">
+            <div id="status-text" class="text-secondary small"></div>
+        </div>
+    </div>
+
+    <!-- Filters Row -->
+    <div class="row g-2 align-items-center mt-1">
+
+        <!-- Quick Picks -->
+        <div class="col-6 col-md-auto">
+            <select id="segment-select" class="form-select form-select-sm bg-dark text-light border-secondary" title="Quick picks">
+                <option value="">— Quick Picks —</option>
                 {% for key in segment_order %}
                 {% set seg = route_segments[key] %}
                 <option value="{{ key }}"
@@ -25,7 +55,7 @@
         </div>
 
         <!-- Radius -->
-        <div class="col-3 col-md-2">
+        <div class="col-3 col-md-auto">
             <select id="radius-select" class="form-select form-select-sm bg-dark text-light border-secondary">
                 <option value="10">10 mi</option>
                 <option value="25" selected>25 mi</option>
@@ -35,7 +65,7 @@
         </div>
 
         <!-- Days -->
-        <div class="col-3 col-md-2">
+        <div class="col-3 col-md-auto">
             <select id="days-select" class="form-select form-select-sm bg-dark text-light border-secondary">
                 <option value="30">30 days</option>
                 <option value="60">60 days</option>
@@ -53,14 +83,6 @@
             </select>
         </div>
 
-        <!-- My Location Button -->
-        <div class="col-auto">
-            <button id="btn-geolocate" class="btn btn-sm btn-outline-warning" title="Use my location">
-                <i class="fas fa-crosshairs"></i>
-                <span class="d-none d-md-inline ms-1">My Location</span>
-            </button>
-        </div>
-
         <!-- Load Button -->
         <div class="col-auto">
             <button id="btn-load" class="btn btn-sm btn-primary">
@@ -68,27 +90,13 @@
             </button>
         </div>
 
-        <!-- Status indicator -->
-        <div class="col-12 col-md-auto ms-md-auto">
-            <div id="status-text" class="text-secondary small"></div>
-        </div>
     </div>
 
     <!-- Species Filter Row -->
     <div class="row g-2 mt-1">
         <div class="col-12">
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <span class="text-secondary small me-1">Show:</span>
-                {% for key, group in species_groups.items() %}
-                <div class="form-check form-check-inline mb-0">
-                    <input class="form-check-input species-check" type="checkbox"
-                           id="chk-{{ key }}" value="{{ key }}" checked
-                           style="accent-color: {{ group.color }};">
-                    <label class="form-check-label text-light small" for="chk-{{ key }}">
-                        {{ group.label }}
-                    </label>
-                </div>
-                {% endfor %}
+            <div id="species-filter" class="d-flex flex-wrap gap-2 align-items-center">
+                <!-- populated by renderSpeciesFilter() -->
             </div>
         </div>
     </div>
@@ -150,7 +158,7 @@
             </div>
             <div id="feed-list" class="feed-list">
                 <div class="text-secondary text-center py-4 small" id="feed-empty">
-                    Select a location and click Load
+                    Search a location or pick a Quick Pick, then click Load
                 </div>
             </div>
             <div class="p-2 border-top border-secondary" id="load-more-container" style="display:none;">
@@ -186,14 +194,23 @@
 const SPECIES_GROUPS = {{ species_groups | tojson }};
 const ROUTE_SEGMENTS = {{ route_segments | tojson }};
 
+// taxon_id → member color (for drill-down markers)
+const TAXON_TO_COLOR = {};
+for (const group of Object.values(SPECIES_GROUPS)) {
+    for (const m of group.members) {
+        TAXON_TO_COLOR[m.taxon_id] = m.color;
+    }
+}
+
 // ── State ───────────────────────────────────────────────────────────
 let map;
 let markerLayer;
 let currentCenter = null;  // {lat, lng}
-let activeSources = new Set(['inaturalist']);  // sources the user has enabled
-let allObservations = [];   // accumulated across pages
+let activeSources = new Set(['inaturalist']);
+let allObservations = [];
 let currentPage = 1;
 let totalAvailable = 0;
+let drillGroup = null;  // null = all-groups mode, string = group key being drilled
 
 // ADF&G coverage by segment key (null = no coverage for that segment)
 const SEGMENT_ADFG_COVERAGE = {
@@ -203,8 +220,8 @@ const SEGMENT_ADFG_COVERAGE = {
 
 // ── Map Init ────────────────────────────────────────────────────────
 function initMap() {
-    // Default: center of Alaska route (roughly Yukon)
-    map = L.map('map', { zoomControl: true }).setView([61.0, -140.0], 5);
+    // Default: continental North America view
+    map = L.map('map', { zoomControl: true }).setView([44.0, -100.0], 4);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
@@ -212,24 +229,122 @@ function initMap() {
     }).addTo(map);
 
     markerLayer = L.layerGroup().addTo(map);
-    addMapLegend();
+    updateMapLegend();
 }
 
-function addMapLegend() {
-    const legend = L.control({ position: 'topright' });
-    legend.onAdd = function () {
+let mapLegend = null;
+
+function updateMapLegend() {
+    if (mapLegend) mapLegend.remove();
+    mapLegend = L.control({ position: 'topright' });
+    mapLegend.onAdd = function () {
         const div = L.DomUtil.create('div', 'map-legend');
-        div.innerHTML = '<b>Species Groups</b><br>';
-        for (const [key, group] of Object.entries(SPECIES_GROUPS)) {
-            div.innerHTML += `
-                <div class="legend-item">
+        if (drillGroup) {
+            const group = SPECIES_GROUPS[drillGroup];
+            div.innerHTML = `<b style="color:${group.color};">${group.label}</b><br>`;
+            group.members.forEach(m => {
+                div.innerHTML += `<div class="legend-item">
+                    <span class="legend-dot" style="background:${m.color};"></span>
+                    ${m.label}</div>`;
+            });
+        } else {
+            div.innerHTML = '<b>Species Groups</b><br>';
+            for (const [, group] of Object.entries(SPECIES_GROUPS)) {
+                div.innerHTML += `<div class="legend-item">
                     <span class="legend-dot" style="background:${group.color};"></span>
-                    ${group.label}
-                </div>`;
+                    ${group.label}</div>`;
+            }
         }
         return div;
     };
-    legend.addTo(map);
+    mapLegend.addTo(map);
+}
+
+// ── Location Search ──────────────────────────────────────────────────
+let searchTimeout = null;
+
+document.getElementById('location-search').addEventListener('input', function () {
+    clearTimeout(searchTimeout);
+    const q = this.value.trim();
+    if (q.length < 3) { hideSuggestions(); return; }
+    searchTimeout = setTimeout(() => geocodeSearch(q), 400);
+});
+
+document.getElementById('location-search').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(searchTimeout);
+        const q = this.value.trim();
+        if (q) geocodeSearch(q);
+    }
+    if (e.key === 'Escape') hideSuggestions();
+});
+
+document.getElementById('btn-search').addEventListener('click', function () {
+    const q = document.getElementById('location-search').value.trim();
+    if (q) geocodeSearch(q);
+});
+
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('#location-search') && !e.target.closest('#search-suggestions')) {
+        hideSuggestions();
+    }
+});
+
+async function geocodeSearch(q) {
+    try {
+        const resp = await fetch(`/geocode?q=${encodeURIComponent(q)}`);
+        const results = await resp.json();
+        if (!Array.isArray(results) || results.length === 0) {
+            hideSuggestions();
+            setStatus('No locations found for "' + q + '".');
+            return;
+        }
+        showSuggestions(results);
+    } catch (e) {
+        console.error('Geocode error:', e);
+    }
+}
+
+function showSuggestions(results) {
+    const box = document.getElementById('search-suggestions');
+    box.innerHTML = results.map((r) => `
+        <div class="search-suggestion px-3 py-2 small"
+             data-lat="${r.lat}" data-lng="${r.lon}" data-display="${escHtml(r.display_name)}">
+            ${escHtml(r.display_name)}
+        </div>`).join('');
+    box.style.display = '';
+    box.querySelectorAll('.search-suggestion').forEach(el => {
+        el.addEventListener('click', function () {
+            selectLocation(
+                parseFloat(this.dataset.lat),
+                parseFloat(this.dataset.lng),
+                this.dataset.display
+            );
+        });
+    });
+}
+
+function hideSuggestions() {
+    const box = document.getElementById('search-suggestions');
+    box.style.display = 'none';
+    box.innerHTML = '';
+}
+
+function selectLocation(lat, lng, displayName) {
+    currentCenter = { lat, lng };
+    map.setView([lat, lng], 10);
+    // Shorten display name to first 2 comma-parts for readability
+    const short = displayName.split(',').slice(0, 2).join(',').trim();
+    document.getElementById('location-search').value = short;
+    document.getElementById('segment-select').value = '';
+    updateConditionsVisibility('');
+    hideSuggestions();
+    loadSightings();
+}
+
+function escHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ── Geolocation ─────────────────────────────────────────────────────
@@ -245,6 +360,9 @@ document.getElementById('btn-geolocate').addEventListener('click', function () {
             const lng = pos.coords.longitude;
             currentCenter = { lat, lng };
             map.setView([lat, lng], 10);
+            document.getElementById('location-search').value = '';
+            document.getElementById('segment-select').value = '';
+            updateConditionsVisibility('');
             setStatus(`Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
             loadSightings();
         },
@@ -266,6 +384,7 @@ document.getElementById('segment-select').addEventListener('change', function ()
     const zoom = seg.default_zoom || 8;
     currentCenter = { lat, lng };
     map.setView([lat, lng], zoom);
+    document.getElementById('location-search').value = '';
     loadSightings();
 });
 
@@ -293,18 +412,81 @@ function updateConditionsVisibility(segmentKey) {
 // ── Load Button ─────────────────────────────────────────────────────
 document.getElementById('btn-load').addEventListener('click', function () {
     if (!currentCenter) {
-        setStatus('Select a route segment or use My Location first.');
+        setStatus('Search a location or use My Location first.');
         return;
     }
     loadSightings();
 });
 
-// Auto-reload when species checkboxes change (if a location is already loaded)
-document.querySelectorAll('.species-check').forEach(chk => {
-    chk.addEventListener('change', function () {
+// ── Species Filter ───────────────────────────────────────────────────
+function renderSpeciesFilter() {
+    const container = document.getElementById('species-filter');
+    if (drillGroup) {
+        renderDrillMode(container, drillGroup);
+    } else {
+        renderGroupMode(container);
+    }
+    updateMapLegend();
+}
+
+function renderGroupMode(container) {
+    const pills = Object.entries(SPECIES_GROUPS).map(([key, group]) => `
+        <div class="d-inline-flex align-items-center gap-1">
+            <input class="form-check-input species-group-check" type="checkbox"
+                   id="chk-${key}" value="${key}" checked
+                   style="accent-color:${group.color};cursor:pointer;margin-top:0;">
+            <button class="btn-drill small" data-group="${key}"
+                    title="Drill into ${group.label} species"
+                    style="background:none;border:none;padding:0;color:#ccc;
+                           cursor:pointer;font-size:13px;line-height:1;
+                           text-decoration:underline dotted;text-underline-offset:2px;">
+                ${group.label}
+            </button>
+        </div>`).join('');
+
+    container.innerHTML = `<span class="text-secondary small me-1">Show:</span>${pills}`;
+
+    container.querySelectorAll('.species-group-check').forEach(chk => {
+        chk.addEventListener('change', () => { if (currentCenter) loadSightings(); });
+    });
+    container.querySelectorAll('.btn-drill').forEach(btn => {
+        btn.addEventListener('click', () => {
+            drillGroup = btn.dataset.group;
+            renderSpeciesFilter();
+            if (currentCenter) loadSightings();
+        });
+    });
+}
+
+function renderDrillMode(container, groupKey) {
+    const group = SPECIES_GROUPS[groupKey];
+    const checks = group.members.map(m => `
+        <div class="form-check form-check-inline mb-0">
+            <input class="form-check-input species-member-check" type="checkbox"
+                   value="${m.taxon_id}" checked
+                   style="accent-color:${m.color};cursor:pointer;">
+            <label class="form-check-label text-light small" style="cursor:pointer;">
+                <span class="legend-dot d-inline-block me-1"
+                      style="background:${m.color};width:9px;height:9px;border-radius:50%;vertical-align:middle;"></span>${m.label}
+            </label>
+        </div>`).join('');
+
+    container.innerHTML = `
+        <button id="btn-back-groups"
+                class="btn btn-sm btn-link text-secondary p-0 me-2"
+                style="font-size:12px;text-decoration:none;">← All groups</button>
+        <span class="fw-semibold small me-2" style="color:${group.color};">${group.label}:</span>
+        ${checks}`;
+
+    document.getElementById('btn-back-groups').addEventListener('click', () => {
+        drillGroup = null;
+        renderSpeciesFilter();
         if (currentCenter) loadSightings();
     });
-});
+    container.querySelectorAll('.species-member-check').forEach(chk => {
+        chk.addEventListener('change', () => { if (currentCenter) loadSightings(); });
+    });
+}
 
 // Auto-reload when radius, days, or quality grade change
 ['radius-select', 'days-select', 'quality-select'].forEach(id => {
@@ -328,17 +510,8 @@ async function loadSightings(appendPage = false) {
     const days = document.getElementById('days-select').value;
     const qualityGrade = document.getElementById('quality-select').value;
     const segmentKey = document.getElementById('segment-select').value;
-    const checkedGroups = Array.from(
-        document.querySelectorAll('.species-check:checked')
-    ).map(el => el.value);
-
-    if (checkedGroups.length === 0) {
-        setStatus('Select at least one species group.');
-        return;
-    }
 
     if (!appendPage) {
-        // Fresh load — reset pagination state
         currentPage = 1;
         allObservations = [];
         totalAvailable = 0;
@@ -355,8 +528,29 @@ async function loadSightings(appendPage = false) {
         quality_grade: qualityGrade,
         page: currentPage,
     });
-    if (segmentKey) params.append('segment', segmentKey);
-    checkedGroups.forEach(g => params.append('groups', g));
+
+    if (drillGroup) {
+        // Drill-down mode: send individual taxon IDs for checked species only
+        const checkedTaxons = Array.from(
+            document.querySelectorAll('.species-member-check:checked')
+        ).map(el => el.value);
+        if (checkedTaxons.length === 0) {
+            setStatus('Select at least one species.');
+            return;
+        }
+        checkedTaxons.forEach(tid => params.append('taxon_id', tid));
+    } else {
+        // Group mode: send group names + optional segment for intersection
+        const checkedGroups = Array.from(
+            document.querySelectorAll('.species-group-check:checked')
+        ).map(el => el.value);
+        if (checkedGroups.length === 0) {
+            setStatus('Select at least one species group.');
+            return;
+        }
+        checkedGroups.forEach(g => params.append('groups', g));
+        if (segmentKey) params.append('segment', segmentKey);
+    }
 
     try {
         const response = await fetch(`/sightings?${params.toString()}`);
@@ -387,7 +581,9 @@ async function loadSightings(appendPage = false) {
         const gradeNote = qualityGrade === 'research' ? '' : ' · incl. unconfirmed';
         const totalNote = totalAvailable > allObservations.length
             ? ` of ${totalAvailable.toLocaleString()} available` : '';
-        setStatus(`${allObservations.length}${totalNote} sightings · ${dotCount} on map${gradeNote}${cacheNote}`);
+        const drillNote = drillGroup
+            ? ` · <span style="color:${SPECIES_GROUPS[drillGroup].color}">▸ ${SPECIES_GROUPS[drillGroup].label} only</span>` : '';
+        setStatus(`${allObservations.length}${totalNote} sightings · ${dotCount} on map${gradeNote}${drillNote}${cacheNote}`);
 
         updateLoadMoreButton();
 
@@ -430,7 +626,8 @@ function renderMarkers(observations) {
     for (const obs of observations) {
         if (obs.lat == null || obs.lng == null) continue;
         const group = SPECIES_GROUPS[obs.group] || {};
-        const color = group.color || '#aaa';
+        // In drill mode use per-species color; fall back to group color
+        const color = (drillGroup && TAXON_TO_COLOR[obs.taxon_id]) || group.color || '#aaa';
         const marker = L.circleMarker([obs.lat, obs.lng], {
             radius: 9,
             fillColor: color,
@@ -649,6 +846,7 @@ function renderSources(sources) {
 // ── Init ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
     initMap();
+    renderSpeciesFilter();
     loadSources();
     loadConditions();
 });

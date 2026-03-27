@@ -1,14 +1,14 @@
 # Megafauna Tracker
 
-Real-time megafauna sighting tracker for North America. Shows research-grade wildlife observations from iNaturalist on an interactive map, filtered by species group, search radius, and time window. Live at **https://megafauna-tracker.onrender.com**
+Real-time megafauna sighting tracker for North America. Shows wildlife observations from iNaturalist on an interactive map, filterable by species group, search radius, and time window. Live at **https://megafauna-tracker.onrender.com**
 
 ## Overview
 
-The app covers the full Cincinnati → Alaska drive corridor — Badlands (SD), Glacier NP (MT), the Canadian Highway, and Alaska zones — and is being expanded to all of North America.
+Search any location in North America by name, or pick a Quick Pick (Yellowstone, Glacier NP, Kenai Peninsula, etc.) to instantly center the map. Observations are fetched live from iNaturalist and displayed as color-coded markers. A Conditions card shows ADF&G weekly fishing/wildlife reports summarized by Claude AI for Alaska segments.
 
-**Primary data source:** [iNaturalist API v1](https://api.inaturalist.org/v1/docs/) — no authentication required, research-grade observations only.
+**Primary data source:** [iNaturalist API v1](https://api.inaturalist.org/v1/docs/) — no authentication required; supports research-grade, unconfirmed, and all observation grades.
 
-**Conditions data:** ADF&G Region 2 fishing/wildlife reports scraped and summarized by Claude AI; displayed in the Conditions card.
+**Conditions data:** ADF&G Region 2 fishing/wildlife reports scraped and summarized by Claude AI; displayed in the Conditions card for Kenai Peninsula and Anchorage Area segments.
 
 ---
 
@@ -19,8 +19,9 @@ The app covers the full Cincinnati → Alaska drive corridor — Badlands (SD), 
 | Backend | Python / Flask 3 + Jinja2 |
 | Frontend | Bootstrap 5 (dark theme) + Leaflet.js |
 | Map tiles | OpenStreetMap |
+| Geocoding | Nominatim (via `/geocode` proxy) |
 | Data | iNaturalist API v1 + ADF&G report scraper |
-| Cache | JSON file cache (`.cache/` directory) |
+| Cache | JSON file cache (`.cache/` directory, 1h TTL) |
 | AI | Anthropic Claude API (`claude-sonnet-4-6`) |
 | Deployment | Gunicorn + Render (https://megafauna-tracker.onrender.com) |
 
@@ -56,30 +57,38 @@ megafauna-tracker/
 
 ## Species Groups
 
-| Group | Species | Color |
-|---|---|---|
-| Bears | Brown/Grizzly Bear, Black Bear | Brown |
-| Deer Family & Bison | Moose, Caribou, Bison | Goldenrod |
-| Canids | Gray Wolf, Coyote | Slate gray |
-| Sheep & Goats | Mountain Goat, Dall Sheep, Bighorn Sheep, Pronghorn | Beige |
-| Marine Mammals | Beluga Whale, Harbor Seal, Sea Otter, Steller Sea Lion | Blue |
-| Mustelids | Wolverine | Dark olive |
+Six top-level groups, each with distinct species colors visible in drill-down mode.
 
-All taxon IDs verified against the iNaturalist API (March 2026). See `species_config.py` for the full list.
+| Group | Species |
+|---|---|
+| Bears | Brown/Grizzly Bear · Black Bear · Polar Bear |
+| Deer Family | Moose · Elk · Caribou · Bison · Pronghorn · White-tailed Deer · Mule Deer · Muskox |
+| Wild Cats | Mountain Lion · Bobcat · Canada Lynx · Jaguar · Ocelot |
+| Canids | Gray Wolf · Coyote · Red Fox · Arctic Fox |
+| Marine Mammals | Humpback Whale · Gray Whale · Orca · Beluga · Harbor Seal · Steller Sea Lion · California Sea Lion · N. Elephant Seal · Sea Otter · Manatee · Walrus |
+| Other | Wolverine · Mountain Goat · Dall Sheep · Bighorn Sheep · American Alligator · Javelina · American Badger · Prairie Dog |
+
+**Drill-down:** Click any group label in the filter bar to switch to per-species checkboxes. Each species gets a unique color on the map and legend. Click "← All groups" to return.
+
+All taxon IDs sourced from the iNaturalist API. See `species_config.py` for the full list.
 
 ---
 
-## Route Segments
+## Quick Picks
 
 | Segment | Location | Notable Species |
 |---|---|---|
-| Great Plains | Badlands NP, SD | Bison, Pronghorn, Coyote, Prairie Dog |
-| Northern Rockies | Glacier NP, MT | Grizzly, Mountain Goat, Bighorn Sheep, Wolf |
+| Yellowstone | Yellowstone & Grand Teton NPs, WY | Bison, Elk, Grizzly, Wolf |
+| Great Plains | Badlands NP, SD | Bison, Pronghorn, Prairie Dog |
+| Northern Rockies | Glacier NP, MT | Grizzly, Mountain Goat, Wolf |
+| Pacific Coast | CA / OR / WA coastline | Gray Whale, Elephant Seal, Sea Otter |
+| Gulf Coast / Southeast | FL, GA, LA | Alligator, Manatee, Black Bear |
+| Desert Southwest | AZ, NM, TX border | Mountain Lion, Javelina, Jaguar |
 | Canadian Corridor | BC / Yukon Highway | Moose, Caribou, Grizzly, Lynx |
-| Kenai Peninsula | Cooper Landing / Seward | Brown Bear, Marine Mammals |
-| Anchorage Area | Turnagain Arm / Chugach SP | Beluga Whale, Dall Sheep, Moose |
-| Interior / Denali | Denali NP | Grizzly, Caribou, Wolf, Dall Sheep |
-| Fairbanks / North | Dalton Highway | Caribou, Muskox, Wolf |
+| Kenai Peninsula | Cooper Landing / Seward, AK | Brown Bear, Marine Mammals |
+| Anchorage Area | Turnagain Arm / Chugach SP, AK | Beluga Whale, Dall Sheep, Moose |
+| Interior / Denali | Denali NP, AK | Grizzly, Caribou, Wolf, Dall Sheep |
+| Fairbanks / North | Dalton Highway, AK | Caribou, Muskox, Polar Bear |
 
 ---
 
@@ -89,11 +98,12 @@ All taxon IDs verified against the iNaturalist API (March 2026). See `species_co
 |---|---|---|
 | `GET` | `/` | Main UI |
 | `GET` | `/sightings` | iNaturalist observations near a point |
-| `GET` | `/species` | Priority species list by route segment |
-| `GET` | `/salmon-count` | ADF&G weir count + bear forecast (seasonal stub) |
-| `GET` | `/local-conditions` | ADF&G Region 2 report + Claude summary (live) |
+| `GET` | `/geocode` | Nominatim geocoding proxy |
+| `GET` | `/species` | Priority species list by segment |
+| `GET` | `/salmon-count` | ADF&G weir count + bear forecast (stub) |
+| `GET` | `/local-conditions` | ADF&G Region 2 report + Claude summary |
 | `GET` | `/sources` | Status and cache age for all data sources |
-| `GET` | `/health` | Render health check |
+| `GET` | `/health` | Render health check + version |
 
 **`/sightings` parameters:**
 
@@ -103,9 +113,11 @@ All taxon IDs verified against the iNaturalist API (March 2026). See `species_co
 | `lng` | float | required | Longitude |
 | `radius` | int | 25 | Search radius in miles (10 / 25 / 50 / 100) |
 | `days` | int | 365 | Days back to search (30 / 60 / 180 / 365) |
-| `groups` | string (repeatable) | all | Species group keys, e.g. `groups=bears&groups=canids` |
-
-Responses are cached for 1 hour in `.cache/`.
+| `groups` | string (repeatable) | all | Group mode: `groups=bears&groups=canids` |
+| `taxon_id` | int (repeatable) | — | Drill mode: specific taxon IDs override groups |
+| `quality_grade` | string | `research` | `research` / `research,needs_id` / `any` |
+| `segment` | string | — | Quick Pick key for segment-aware taxon filtering |
+| `page` | int | 1 | Page number (200 results per page) |
 
 ---
 
@@ -136,28 +148,28 @@ The app is Render-ready via `Procfile`:
 web: gunicorn wsgi:app --bind 0.0.0.0:$PORT
 ```
 
-Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard. No database required — all state is either fetched live or cached in `.cache/`. Note: Render's free tier has ephemeral storage, so the cache resets on each restart.
+Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard. No database required — all state is either fetched live or cached in `.cache/`. Note: Render's free tier has ephemeral storage, so the cache resets on each restart (~30s cold start after 15 min inactivity).
 
 ---
 
 ## Roadmap
 
-### v0.3 — Current
-- iNaturalist live feed with research-grade filtering
-- Leaflet map with color-coded species markers
-- Species group checkboxes, radius + time-window selectors
-- Route segment selector with map centering
-- Geolocation ("My Location") button
-- Source visibility panel with status pills and toggle
-- ADF&G Region 2 report scraper + Claude AI summarization
-- Live Conditions card (alerts, sightings, AI summary)
-- Deployed to Render (https://megafauna-tracker.onrender.com)
-- Bear paw favicon + version badge in navbar
+### v0.5.2 — Current
+- Free-text location search (Nominatim geocoder) with autocomplete dropdown
+- 6 species groups · 39 species · 11 Quick Pick segments covering all of North America
+- Species drill-down: click group → per-species checkboxes with unique colors per species
+- Dynamic map legend updates to show individual species in drill-down mode
+- iNaturalist quality grade selector (Verified / + Unconfirmed / All)
+- Sighting count transparency ("X of Y available") + Load More pagination
+- Auto-reload on filter changes
+- Source visibility panel with status pills
+- ADF&G Region 2 report scraper + Claude AI summarization (Conditions card)
+- Deployed to Render
 
 ### Planned
+- iPhone-first layout overhaul
 - Time-dependence visualization (sighting trends, marker age)
 - AI Analysis page with Claude chat interface
-- iPhone-first layout overhaul
-- North America expansion (beyond Alaska route)
-- ADF&G salmon weir count scraper (seasonal — Jun–Sep)
-- ADF&G salmon weir count + Claude bear activity forecast
+- ADF&G salmon weir count scraper + Claude bear activity forecast
+- Expand ADF&G Conditions card to Regions 1, 3, 5 (Southeast, Interior, Fairbanks)
+- Alaska Outdoors Forums scraper

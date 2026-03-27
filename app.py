@@ -12,6 +12,7 @@ Endpoints:
 
 import logging
 import os
+import requests as http_requests
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
@@ -26,7 +27,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-APP_VERSION = '0.4'
+APP_VERSION = '0.5.2'
 
 
 def create_app():
@@ -59,12 +60,14 @@ def create_app():
     def sightings():
         """
         GET /sightings?lat=&lng=&radius=&days=&groups=bears&groups=canids
+        Drill-down mode: pass taxon_id=<id>&taxon_id=<id> instead of groups.
         """
         lat = request.args.get('lat', type=float)
         lng = request.args.get('lng', type=float)
         radius = request.args.get('radius', 25, type=int)
         days = request.args.get('days', 30, type=int)
         groups = request.args.getlist('groups')
+        taxon_id_overrides = request.args.getlist('taxon_id', type=int)
         quality_grade = request.args.get('quality_grade', 'research')
         segment = request.args.get('segment', '')
         page = request.args.get('page', 1, type=int)
@@ -72,30 +75,38 @@ def create_app():
         if lat is None or lng is None:
             return jsonify({'error': 'lat and lng are required'}), 400
 
-        # Resolve taxon_ids from requested groups
-        if groups:
-            taxon_ids = []
-            for g in groups:
-                if g in SPECIES_GROUPS:
-                    taxon_ids.extend(SPECIES_GROUPS[g]['taxon_ids'])
-            if not taxon_ids:
-                return jsonify({'error': f'Unknown groups: {groups}'}), 400
+        if taxon_id_overrides:
+            # Drill-down mode: caller specifies exact taxon IDs
+            taxon_ids = taxon_id_overrides
+            cache_key = (
+                f"sightings_{lat:.4f}_{lng:.4f}_{radius}_{days}"
+                f"_{quality_grade}_drill_p{page}"
+                f"_{'_'.join(str(t) for t in sorted(taxon_ids))}"
+            )
         else:
-            taxon_ids = ALL_TAXON_IDS
+            # Group mode: resolve taxon_ids from group names
+            if groups:
+                taxon_ids = []
+                for g in groups:
+                    if g in SPECIES_GROUPS:
+                        taxon_ids.extend(SPECIES_GROUPS[g]['taxon_ids'])
+                if not taxon_ids:
+                    return jsonify({'error': f'Unknown groups: {groups}'}), 400
+            else:
+                taxon_ids = ALL_TAXON_IDS
 
-        # Option 4: when a segment is selected, intersect with segment's
-        # priority taxon_ids so results stay relevant to that area
-        if segment and segment in ROUTE_SEGMENTS:
-            seg_ids = set(ROUTE_SEGMENTS[segment].get('taxon_ids', []))
-            intersected = [t for t in taxon_ids if t in seg_ids]
-            if intersected:  # only apply if intersection is non-empty
-                taxon_ids = intersected
+            # When a segment is selected, intersect with segment's priority taxon_ids
+            if segment and segment in ROUTE_SEGMENTS:
+                seg_ids = set(ROUTE_SEGMENTS[segment].get('taxon_ids', []))
+                intersected = [t for t in taxon_ids if t in seg_ids]
+                if intersected:
+                    taxon_ids = intersected
 
-        cache_key = (
-            f"sightings_{lat:.4f}_{lng:.4f}_{radius}_{days}"
-            f"_{quality_grade}_{segment or 'any'}_p{page}"
-            f"_{'_'.join(sorted(groups or ['all']))}"
-        )
+            cache_key = (
+                f"sightings_{lat:.4f}_{lng:.4f}_{radius}_{days}"
+                f"_{quality_grade}_{segment or 'any'}_p{page}"
+                f"_{'_'.join(sorted(groups or ['all']))}"
+            )
         cached = cache_get(cache_key)
         if cached:
             return jsonify(cached)
@@ -157,6 +168,24 @@ def create_app():
         except Exception as e:
             logger.warning(f"Local conditions unavailable: {e}")
             return jsonify({'available': False, 'error': str(e)}), 200
+
+    @app.route('/geocode')
+    def geocode():
+        """Proxy Nominatim geocoding (avoids browser User-Agent restrictions)."""
+        q = request.args.get('q', '').strip()
+        if not q:
+            return jsonify({'error': 'q parameter required'}), 400
+        try:
+            resp = http_requests.get(
+                'https://nominatim.openstreetmap.org/search',
+                params={'q': q, 'format': 'json', 'limit': 5, 'addressdetails': 0},
+                headers={'User-Agent': f'MegafaunaTracker/{APP_VERSION} (wildlife observation app)'},
+                timeout=10,
+            )
+            return jsonify(resp.json())
+        except Exception as e:
+            logger.error(f"Geocode error: {e}")
+            return jsonify([]), 200
 
     @app.route('/sources')
     def sources():

@@ -18,7 +18,7 @@ Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in p
 - [x] **Sighting count transparency + pagination** — status bar shows "X of Y available"; segment-aware taxon filtering; Load More button appends next page
 - [x] **Auto-reload on filter changes** — species checkboxes, radius, days, and quality grade trigger reload automatically when a location is set
 - [x] **Source visibility and selection** — show which data sources are active in the UI; allow user to toggle sources on/off; display freshness per source
-- [ ] **Expand to all of North America** — remove the Alaska/road-trip framing as the primary scope; make the app useful anywhere in North America; revisit species list, route segments, and default map center accordingly
+- [x] **Expand to all of North America** — free-text location search (Nominatim geocoder via `/geocode` proxy); 6-group species hierarchy (Bears, Deer Family, Wild Cats, Canids, Marine Mammals, Other); 39 species total; 11 Quick Pick segments including Yellowstone, Pacific Coast, Gulf Coast, Desert Southwest; default map centered on North America
 - [ ] **ADF&G salmon weir count scraper** — scrape Russian River Sockeye (early + late run) and Kenai Late-Run Sockeye from `adfg.alaska.gov/sf/FishCounts/`; cache 24h; stub exists in `sources/adfg_fishcounts.py`
 - [x] **ADF&G weekly fishing/wildlife report scraper** — scrape narrative reports from ADF&G Region 2; pass to Claude for structured extraction (`alerts`, `sightings`, `conditions_summary`); cache 12h
 - [ ] **Alaska Outdoors Forums scraper** — scrape recent posts from `forums.outdoorsdirectory.com` filtered to "Russian River" + "bear"; graceful degradation if scrape fails; stub exists in `sources/forums.py`
@@ -56,3 +56,5 @@ Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in p
 - [x] Bear paw favicon (PNG app icon)
 - [x] App renamed to Megafauna Tracker (removed Alaska-only framing)
 - [x] Version badge in navbar (v0.3); version exposed on `/health`
+- [x] v0.5 — North America expansion (location search, 6 species groups, 11 Quick Picks, 39 species)
+- [x] v0.5.2 — Species drill-down (click group label → per-species checkboxes; distinct color per species on markers, legend, and filter; dynamic map legend updates on mode switch)
