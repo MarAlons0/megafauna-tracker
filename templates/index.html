@@ -120,6 +120,9 @@
     <!-- Map Panel -->
     <div class="map-panel">
         <div id="map"></div>
+        <button id="btn-fullscreen-map" title="Toggle fullscreen map">
+            <i class="fas fa-expand"></i>
+        </button>
     </div>
 
     <!-- Right Sidebar: Feed + Conditions -->
@@ -842,6 +845,15 @@ function renderSources(sources) {
         }
     });
 }
+
+// ── Fullscreen Map ───────────────────────────────────────────────────
+document.getElementById('btn-fullscreen-map').addEventListener('click', function () {
+    const isFullscreen = document.body.classList.toggle('map-is-fullscreen');
+    this.innerHTML = isFullscreen
+        ? '<i class="fas fa-compress"></i>'
+        : '<i class="fas fa-expand"></i>';
+    setTimeout(() => map.invalidateSize(), 50);
+});
 
 // ── Init ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {

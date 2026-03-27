@@ -245,6 +245,47 @@ html, body {
     font-size: 11px;
 }
 
+/* ── Fullscreen Map Toggle ───────────────────────────────────────── */
+#btn-fullscreen-map {
+    position: absolute;
+    bottom: 24px;
+    right: 10px;
+    z-index: 1000;
+    background: rgba(26, 26, 46, 0.88);
+    border: 1px solid #555;
+    color: #e0e0e0;
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 15px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+#btn-fullscreen-map:hover {
+    background: rgba(40, 40, 70, 0.95);
+    color: #fff;
+}
+
+body.map-is-fullscreen .map-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+    z-index: 500;
+    max-height: none;
+}
+
+body.map-is-fullscreen nav,
+body.map-is-fullscreen .controls-bar,
+body.map-is-fullscreen .sidebar-panel {
+    display: none !important;
+}
+
+body.map-is-fullscreen .main-layout {
+    height: 100dvh;
+}
+
 /* ── Location Search Suggestions ────────────────────────────────── */
 .search-suggestion {
     cursor: pointer;
