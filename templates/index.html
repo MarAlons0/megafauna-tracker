@@ -851,8 +851,8 @@ function renderSources(sources) {
 document.getElementById('btn-fullscreen-map').addEventListener('click', function () {
     const isFullscreen = document.body.classList.toggle('map-is-fullscreen');
     this.innerHTML = isFullscreen
-        ? '<i class="fas fa-compress"></i><span class="d-md-none">Exit</span>'
-        : '<i class="fas fa-expand"></i><span class="d-md-none">Full screen</span>';
+        ? '<i class="fas fa-compress"></i><span class="d-md-none"> Exit</span>'
+        : '<i class="fas fa-expand"></i><span class="d-md-none"> Full screen</span>';
     setTimeout(() => map.invalidateSize(), 50);
 });
 
