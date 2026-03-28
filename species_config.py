@@ -5,57 +5,58 @@ Taxon IDs sourced from iNaturalist — verify with:
 """
 
 # --- Taxon IDs ---
+# All IDs verified against iNaturalist API (api.inaturalist.org/v1/taxa/<id>)
 TAXON_IDS = {
     # Bears
     'brown_grizzly_bear':      41641,   # Ursus arctos
     'black_bear':              41638,   # Ursus americanus
-    'polar_bear':              41671,   # Ursus maritimus
+    'polar_bear':              41644,   # Ursus maritimus
 
     # Deer Family
-    'moose':                   42196,   # Alces (genus)
-    'elk':                     42160,   # Cervus canadensis
+    'moose':                   42196,   # Alces (genus — only species in genus)
+    'elk':                    204114,   # Cervus canadensis (Wapiti)
     'caribou':                 42199,   # Rangifer tarandus
     'bison':                   42408,   # Bison bison
     'pronghorn':               42429,   # Antilocapra americana
-    'white_tailed_deer':       42219,   # Odocoileus virginianus
-    'mule_deer':               42157,   # Odocoileus hemionus
+    'white_tailed_deer':       42223,   # Odocoileus virginianus
+    'mule_deer':               42220,   # Odocoileus hemionus
     'muskox':                  42412,   # Ovibos moschatus
 
     # Wild Cats
-    'mountain_lion':           41975,   # Puma concolor
-    'bobcat':                  41790,   # Lynx rufus
-    'canada_lynx':             41791,   # Lynx canadensis
-    'jaguar':                  41963,   # Panthera onca
-    'ocelot':                  41961,   # Leopardus pardalis
+    'mountain_lion':           42007,   # Puma concolor
+    'bobcat':                  41976,   # Lynx rufus
+    'canada_lynx':             41974,   # Lynx canadensis
+    'jaguar':                  41970,   # Panthera onca
+    'ocelot':                  41997,   # Leopardus pardalis
 
     # Canids
     'gray_wolf':               42048,   # Canis lupus
-    'coyote':                  41972,   # Canis latrans
-    'red_fox':                 42053,   # Vulpes vulpes
-    'arctic_fox':              41878,   # Vulpes lagopus
+    'coyote':                  42051,   # Canis latrans
+    'red_fox':                 42069,   # Vulpes vulpes
+    'arctic_fox':             233598,   # Vulpes lagopus
 
     # Marine Mammals
-    'humpback_whale':          43697,   # Megaptera novaeangliae
-    'gray_whale':              41483,   # Eschrichtius robustus
-    'orca':                    41424,   # Orcinus orca
+    'humpback_whale':          41566,   # Megaptera novaeangliae
+    'gray_whale':              41478,   # Eschrichtius robustus
+    'orca':                    41521,   # Orcinus orca
     'beluga_whale':            41461,   # Delphinapterus leucas
     'harbor_seal':             41708,   # Phoca vitulina
     'steller_sea_lion':        41755,   # Eumetopias jubatus
-    'california_sea_lion':     41756,   # Zalophus californianus
-    'northern_elephant_seal':  41734,   # Mirounga angustirostris
+    'california_sea_lion':     41740,   # Zalophus californianus
+    'northern_elephant_seal':  41728,   # Mirounga angustirostris
     'sea_otter':               41860,   # Enhydra lutris
-    'manatee':                 44343,   # Trichechus manatus
-    'walrus':                  41714,   # Odobenus rosmarus
+    'manatee':                 46316,   # Trichechus manatus
+    'walrus':                  41766,   # Odobenus rosmarus
 
     # Other Megafauna
     'wolverine':               41852,   # Gulo gulo
     'mountain_goat':           42414,   # Oreamnos americanus
     'dall_sheep':              42390,   # Ovis dalli (Thinhorn Sheep)
     'bighorn_sheep':           42391,   # Ovis canadensis
-    'american_alligator':      26175,   # Alligator mississippiensis
-    'javelina':                42464,   # Pecari tajacu (Collared Peccary)
-    'american_badger':         41859,   # Taxidea taxus
-    'prairie_dog':             46010,   # Cynomys (genus)
+    'american_alligator':      26159,   # Alligator mississippiensis
+    'javelina':                42113,   # Pecari tajacu (Collared Peccary)
+    'american_badger':         41789,   # Taxidea taxus
+    'prairie_dog':             46175,   # Cynomys (genus)
 }
 
 # --- Species Groups ---
