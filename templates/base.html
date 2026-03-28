@@ -99,15 +99,26 @@
         if (link.getAttribute('href') === _path) link.classList.add('active');
     });
 
-    // Mark active bottom nav tab
+    // Mark active bottom nav tab; prevent page reload when tapping the current tab
+    const _controlsBar = document.querySelector('.controls-bar');
     document.querySelectorAll('.bottom-nav-tab[href]').forEach(tab => {
-        if (tab.getAttribute('href') === _path) tab.classList.add('active');
+        if (tab.getAttribute('href') === _path) {
+            tab.classList.add('active');
+            tab.addEventListener('click', function (e) {
+                e.preventDefault();
+                // Tapping Map while on map page just closes the filters panel
+                if (_controlsBar && !_controlsBar.classList.contains('controls-hidden')) {
+                    _controlsBar.classList.add('controls-hidden');
+                    const fb = document.getElementById('btn-filters-toggle');
+                    if (fb) fb.classList.remove('active');
+                }
+            });
+        }
     });
 
     // Filters toggle (map page only)
     const _filtersBtn = document.getElementById('btn-filters-toggle');
     if (_filtersBtn) {
-        const _controlsBar = document.querySelector('.controls-bar');
         if (_controlsBar) {
             _filtersBtn.addEventListener('click', () => {
                 const hidden = _controlsBar.classList.toggle('controls-hidden');
