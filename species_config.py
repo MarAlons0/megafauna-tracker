@@ -1,7 +1,13 @@
 """
 Species configuration for Megafauna Tracker — North America.
-Taxon IDs sourced from iNaturalist — verify with:
-  https://api.inaturalist.org/v1/taxa?q=<name>
+
+IMPORTANT — Adding or changing taxon IDs:
+  iNaturalist IDs have no meaningful order. Never guess an ID.
+  1. Look it up: curl "https://api.inaturalist.org/v1/taxa?q=<Scientific+Name>&rank=species"
+  2. Confirm the returned `name` matches what you expect.
+  3. Run the verification script before deploying:
+         venv/bin/python3 scripts/verify_taxon_ids.py
+  See README.md → "Adding or changing species" for full details.
 """
 
 # --- Taxon IDs ---

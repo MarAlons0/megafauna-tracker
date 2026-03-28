@@ -72,6 +72,28 @@ Six top-level groups, each with distinct species colors visible in drill-down mo
 
 All taxon IDs sourced from the iNaturalist API. See `species_config.py` for the full list.
 
+### Adding or changing species
+
+iNaturalist taxon IDs have no meaningful structure — neighboring numbers belong to completely unrelated organisms, and the API accepts any integer silently, returning whatever that ID actually points to. **Never guess or derive an ID from a nearby species.**
+
+**Correct process:**
+
+1. Look up the ID on iNaturalist:
+   ```
+   curl "https://api.inaturalist.org/v1/taxa?q=Canis+latrans&rank=species"
+   ```
+   Copy the `id` from the first result and confirm the `name` matches.
+
+2. Add or edit the entry in `TAXON_IDS` in `species_config.py`, with the scientific name in a comment.
+
+3. Run the verification script to confirm all IDs resolve correctly:
+   ```bash
+   venv/bin/python3 scripts/verify_taxon_ids.py
+   ```
+   It exits with code 1 if any ID is wrong or missing. Fix before deploying.
+
+**Why this matters:** In March 2026, 17 of 39 species had wrong IDs — arctic fox pointed to genus *Mephitis* (skunks), humpback whale pointed to Asian elephant, coyote pointed to clouded leopard, etc. The bug was invisible because the API returns valid data for any ID; it only surfaced when a skunk appeared on the map labeled as a canid.
+
 ---
 
 ## Quick Picks
@@ -154,7 +176,7 @@ Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard. No d
 
 ## Roadmap
 
-### v0.5.2 — Current
+### v0.5.3 — Current
 - Free-text location search (Nominatim geocoder) with autocomplete dropdown
 - 6 species groups · 39 species · 11 Quick Pick segments covering all of North America
 - Species drill-down: click group → per-species checkboxes with unique colors per species
@@ -164,12 +186,15 @@ Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard. No d
 - Auto-reload on filter changes
 - Source visibility panel with status pills
 - ADF&G Region 2 report scraper + Claude AI summarization (Conditions card)
+- AI Analysis page: auto-generated wildlife briefing + multi-turn chat
+- Fullscreen map toggle
+- iPhone-first mobile layout: bottom nav, filters toggle, safe-area support
+- Auto-restore last location on load; geolocation fallback
+- All 39 taxon IDs verified against iNaturalist API; verification script added
 - Deployed to Render
 
 ### Planned
-- iPhone-first layout overhaul
 - Time-dependence visualization (sighting trends, marker age)
-- AI Analysis page with Claude chat interface
 - ADF&G salmon weir count scraper + Claude bear activity forecast
 - Expand ADF&G Conditions card to Regions 1, 3, 5 (Southeast, Interior, Fairbanks)
 - Alaska Outdoors Forums scraper
