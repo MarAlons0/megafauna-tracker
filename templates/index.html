@@ -877,6 +877,35 @@ document.addEventListener('DOMContentLoaded', function () {
     renderSpeciesFilter();
     loadSources();
     loadConditions();
+    restoreOrGeolocate();
 });
+
+// ── Auto-restore last location or geolocate ──────────────────────────
+function restoreOrGeolocate() {
+    // 1. Last used location from localStorage
+    const stored = localStorage.getItem('megafauna_location');
+    if (stored) {
+        try {
+            const loc = JSON.parse(stored);
+            currentCenter = { lat: loc.lat, lng: loc.lng };
+            map.setView([loc.lat, loc.lng], 10);
+            document.getElementById('location-search').value = loc.name || '';
+            loadSightings();
+            return;
+        } catch (_) {}
+    }
+
+    // 2. Silently try browser geolocation
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+        function (pos) {
+            currentCenter = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            map.setView([currentCenter.lat, currentCenter.lng], 10);
+            loadSightings();
+        },
+        function () { /* permission denied or unavailable — stay at overview */ },
+        { timeout: 8000 }
+    );
+}
 </script>
 {% endblock %}
