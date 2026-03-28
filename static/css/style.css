@@ -426,7 +426,10 @@ body.analysis-page .main-layout {
 /* ── Mobile layout ───────────────────────────────────────────────── */
 @media (max-width: 767px) {
     body {
-        overflow: auto;  /* re-enable page scroll on mobile */
+        overflow: auto;
+        /* Push content below status bar (PWA black-translucent) */
+        padding-top: env(safe-area-inset-top);
+        /* Keep content above bottom nav */
         padding-bottom: calc(56px + env(safe-area-inset-bottom));
     }
 
@@ -441,11 +444,12 @@ body.analysis-page .main-layout {
         overflow: visible;
     }
 
+    /* Map fills viewport height minus safe areas and bottom nav */
     .map-panel {
         flex: none;
-        height: 55vw;
-        min-height: 260px;
-        max-height: 380px;
+        height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 56px);
+        min-height: 300px;
+        border-radius: 0;  /* full-width on mobile, no rounded corners */
     }
 
     .sidebar-panel {

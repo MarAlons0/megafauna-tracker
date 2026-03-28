@@ -114,6 +114,12 @@
     </div>
 </div>
 
+<!-- Map title (desktop only) -->
+<div class="map-title-bar d-none d-md-flex align-items-center px-3 py-2 border-bottom border-secondary">
+    <i class="fas fa-paw me-2 text-warning"></i>
+    <span class="fw-semibold text-light" id="map-title-text">North America — Megafauna Sightings</span>
+</div>
+
 <!-- ── Main Layout ─────────────────────────────────────────────── -->
 <div class="main-layout">
 
@@ -122,7 +128,7 @@
         <div id="map"></div>
         <button id="btn-fullscreen-map" title="Toggle fullscreen map">
             <i class="fas fa-expand"></i>
-            <span class="d-md-none">Full screen</span>
+            <span class="d-md-none ms-1">Full screen</span>
         </button>
     </div>
 
@@ -596,6 +602,10 @@ async function loadSightings(appendPage = false) {
             || document.getElementById('segment-select').options[
                 document.getElementById('segment-select').selectedIndex].text.replace('— Quick Picks —', '').trim()
             || `${currentCenter.lat.toFixed(3)}, ${currentCenter.lng.toFixed(3)}`;
+
+        // Update desktop map title
+        const titleEl = document.getElementById('map-title-text');
+        if (titleEl && locationName) titleEl.textContent = `${locationName} — Megafauna Sightings`;
         localStorage.setItem('megafauna_location', JSON.stringify({
             lat: currentCenter.lat,
             lng: currentCenter.lng,
