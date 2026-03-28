@@ -1,3 +1,15 @@
+/* ── CSS Custom Properties ───────────────────────────────────────── */
+:root {
+    --accent: #FFC107;
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #12122a;
+    --bg-nav: #121212;
+    --border: #333333;
+    --text-primary: #e0e0e0;
+    --text-secondary: #888888;
+    --accent-text: #000000;
+}
+
 /* ── Base ────────────────────────────────────────────────────────── */
 html, body {
     margin: 0;
@@ -7,6 +19,61 @@ html, body {
     color: #e0e0e0;
     font-family: system-ui, -apple-system, sans-serif;
     overflow: hidden;        /* prevent page scroll — scroll happens inside panels */
+}
+
+/* ── Desktop Navbar ──────────────────────────────────────────────── */
+.navbar .nav-link {
+    color: var(--text-secondary) !important;
+    transition: color 0.15s;
+}
+.navbar .nav-link:hover {
+    color: #bbbbbb !important;
+}
+.navbar .nav-link.active {
+    color: var(--accent) !important;
+}
+
+/* ── Bottom Nav ──────────────────────────────────────────────────── */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--bg-nav);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: stretch;
+    z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottom-nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    background: none;
+    border: none;
+    font-size: 11px;
+    font-family: system-ui, -apple-system, sans-serif;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s;
+}
+
+.bottom-nav-tab i {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.bottom-nav-tab.active,
+.bottom-nav-tab:active {
+    color: var(--accent);
 }
 
 /* ── Controls Bar ────────────────────────────────────────────────── */
@@ -352,9 +419,15 @@ body.analysis-page .main-layout {
 }
 
 /* ── Mobile layout ───────────────────────────────────────────────── */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
     body {
         overflow: auto;  /* re-enable page scroll on mobile */
+        padding-bottom: calc(56px + env(safe-area-inset-bottom));
+    }
+
+    /* Controls bar hidden by default on mobile; Filters tab toggles it */
+    .controls-bar.controls-hidden {
+        display: none !important;
     }
 
     .main-layout {

@@ -23,7 +23,7 @@
     {% block head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
-    <nav class="navbar navbar-dark navbar-expand-lg bg-dark py-2">
+    <nav class="navbar navbar-dark navbar-expand-lg bg-dark py-2 d-none d-md-flex">
         <div class="container-fluid px-3">
             <a class="navbar-brand fw-bold" href="/">
                 <i class="fas fa-paw me-2"></i>Megafauna Tracker
@@ -68,9 +68,56 @@
 
     {% block content %}{% endblock %}
 
+    <!-- Bottom nav (mobile only) -->
+    <nav class="bottom-nav d-md-none">
+        <a class="bottom-nav-tab" href="/">
+            <i class="fas fa-map"></i>
+            <span>Map</span>
+        </a>
+        <button class="bottom-nav-tab" id="btn-filters-toggle">
+            <i class="fas fa-sliders"></i>
+            <span>Filters</span>
+        </button>
+        <a class="bottom-nav-tab" href="/analysis">
+            <i class="fas fa-robot"></i>
+            <span>Analysis</span>
+        </a>
+        <a class="bottom-nav-tab" href="https://github.com/MarAlons0/megafauna-tracker#readme" target="_blank">
+            <i class="fas fa-circle-info"></i>
+            <span>About</span>
+        </a>
+    </nav>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     {% block scripts %}{% endblock %}
+    <script>
+    // Mark active desktop nav link
+    const _path = window.location.pathname;
+    document.querySelectorAll('.navbar .nav-link[href]').forEach(link => {
+        if (link.getAttribute('href') === _path) link.classList.add('active');
+    });
+
+    // Mark active bottom nav tab
+    document.querySelectorAll('.bottom-nav-tab[href]').forEach(tab => {
+        if (tab.getAttribute('href') === _path) tab.classList.add('active');
+    });
+
+    // Filters toggle (map page only)
+    const _filtersBtn = document.getElementById('btn-filters-toggle');
+    if (_filtersBtn) {
+        const _controlsBar = document.querySelector('.controls-bar');
+        if (_controlsBar) {
+            _filtersBtn.addEventListener('click', () => {
+                const hidden = _controlsBar.classList.toggle('controls-hidden');
+                _filtersBtn.classList.toggle('active', !hidden);
+            });
+        } else {
+            // Not on map page — hide the filters tab
+            _filtersBtn.style.display = 'none';
+        }
+    }
+    </script>
 </body>
 </html>
