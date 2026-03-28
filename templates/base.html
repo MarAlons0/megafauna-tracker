@@ -82,11 +82,49 @@
             <i class="fas fa-robot"></i>
             <span>Analysis</span>
         </a>
-        <a class="bottom-nav-tab" href="https://github.com/MarAlons0/megafauna-tracker#readme" target="_blank">
-            <i class="fas fa-circle-info"></i>
-            <span>About</span>
-        </a>
+        <button class="bottom-nav-tab" id="btn-help-toggle" data-bs-toggle="modal" data-bs-target="#helpModal">
+            <i class="fas fa-circle-question"></i>
+            <span>Help</span>
+        </button>
     </nav>
+
+    <!-- Help Modal -->
+    <div class="modal fade" id="helpModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: var(--bg-secondary); border-color: var(--border);">
+                <div class="modal-header" style="border-color: var(--border);">
+                    <h5 class="modal-title" style="color: var(--accent);">
+                        <i class="fas fa-circle-question me-2"></i>Megafauna Tracker — Help
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="color: var(--text-primary);">
+                    <p class="mb-3">Track large mammal sightings across North America using verified iNaturalist observations, with AI-powered wildlife briefings for any location.</p>
+                    <p class="fw-semibold mb-2" style="color: var(--accent);">How to use</p>
+                    <ol class="mb-3" style="padding-left: 1.2em; line-height: 1.8;">
+                        <li>Tap <strong>Filters</strong> to open the controls bar</li>
+                        <li>Search a location or choose a <strong>Quick Pick</strong></li>
+                        <li>Adjust radius, time window, and species groups as needed</li>
+                        <li>Tap <strong>Load</strong> — sightings appear on the map and in the feed</li>
+                        <li>Tap <strong>Analysis</strong> for an AI-generated wildlife briefing and chat</li>
+                    </ol>
+                    <p class="fw-semibold mb-2" style="color: var(--accent);">Tips</p>
+                    <ul style="padding-left: 1.2em; line-height: 1.8;">
+                        <li>Tap <strong>My Location</strong> for the fastest start — sightings load automatically</li>
+                        <li>Tap a species group label (e.g. <em>Bears</em>) to drill into per-species colors</li>
+                        <li>Use the fullscreen button on the map for a bigger view</li>
+                    </ul>
+                </div>
+                <div class="modal-footer" style="border-color: var(--border);">
+                    <a href="https://github.com/MarAlons0/megafauna-tracker#readme"
+                       target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-circle-info me-1"></i>Full README on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

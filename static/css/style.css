@@ -98,6 +98,8 @@ html, body {
     flex: 1 1 65%;
     min-width: 0;
     position: relative;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
 #map {
@@ -315,12 +317,12 @@ html, body {
 /* ── Fullscreen Map Toggle ───────────────────────────────────────── */
 #btn-fullscreen-map {
     position: absolute;
-    bottom: 24px;
+    bottom: 16px;
     right: 10px;
     z-index: 1000;
     background: rgba(26, 26, 46, 0.88);
-    border: 1px solid #777;
-    color: #e0e0e0;
+    border: 1px solid var(--accent);
+    color: var(--accent);
     border-radius: 6px;
     padding: 8px 12px;
     font-size: 13px;
@@ -337,6 +339,7 @@ html, body {
 #btn-fullscreen-map:hover {
     background: rgba(40, 40, 70, 0.95);
     color: #fff;
+    border-color: #fff;
 }
 
 body.map-is-fullscreen .map-panel {
@@ -347,9 +350,11 @@ body.map-is-fullscreen .map-panel {
     height: 100dvh;
     z-index: 500;
     max-height: none;
+    border-radius: 0;
 }
 
 body.map-is-fullscreen nav,
+body.map-is-fullscreen .bottom-nav,
 body.map-is-fullscreen .controls-bar,
 body.map-is-fullscreen .sidebar-panel {
     display: none !important;
