@@ -40,15 +40,25 @@ TAXON_IDS = {
     'coyote':                  42051,   # Canis latrans
     'red_fox':                 42069,   # Vulpes vulpes
     'arctic_fox':             233598,   # Vulpes lagopus
+    'gray_fox':                42076,   # Urocyon cinereoargenteus
 
     # Marine Mammals
     'humpback_whale':          41566,   # Megaptera novaeangliae
+    'blue_whale':              41553,   # Balaenoptera musculus
     'gray_whale':              41478,   # Eschrichtius robustus
     'orca':                    41521,   # Orcinus orca
+    'common_dolphin':          41526,   # Delphinus delphis
+    'bottlenose_dolphin':      41482,   # Tursiops truncatus (incl. Tamanend's via ancestor)
+    'pacific_whitesided_dolphin': 1664971, # Aethalodelphis obliquidens
+    'rissos_dolphin':          41541,   # Grampus griseus
+    'northern_right_whale_dolphin': 41537, # Lissodelphis borealis
+    'dalls_porpoise':          41446,   # Phocoenoides dalli
     'beluga_whale':            41461,   # Delphinapterus leucas
     'harbor_seal':             41708,   # Phoca vitulina
     'steller_sea_lion':        41755,   # Eumetopias jubatus
     'california_sea_lion':     41740,   # Zalophus californianus
+    'northern_fur_seal':       41757,   # Callorhinus ursinus
+    'guadalupe_fur_seal':      41746,   # Arctocephalus townsendi
     'northern_elephant_seal':  41728,   # Mirounga angustirostris
     'sea_otter':               41860,   # Enhydra lutris
     'manatee':                 46316,   # Trichechus manatus
@@ -111,23 +121,37 @@ SPECIES_GROUPS = {
             {'label': 'Coyote',     'taxon_id': TAXON_IDS['coyote'],     'color': '#A0856C'},
             {'label': 'Red Fox',    'taxon_id': TAXON_IDS['red_fox'],     'color': '#CC3300'},
             {'label': 'Arctic Fox', 'taxon_id': TAXON_IDS['arctic_fox'], 'color': '#C8DCF0'},
+            {'label': 'Gray Fox',   'taxon_id': TAXON_IDS['gray_fox'],   'color': '#9E9E9E'},
         ],
     },
     'marine': {
         'label': 'Marine Mammals',
         'color': '#1E90FF',
         'members': [
-            {'label': 'Humpback Whale',        'taxon_id': TAXON_IDS['humpback_whale'],        'color': '#1E90FF'},
-            {'label': 'Gray Whale',             'taxon_id': TAXON_IDS['gray_whale'],            'color': '#778899'},
-            {'label': 'Orca',                   'taxon_id': TAXON_IDS['orca'],                  'color': '#101010'},
-            {'label': 'Beluga Whale',           'taxon_id': TAXON_IDS['beluga_whale'],          'color': '#B0D8F0'},
-            {'label': 'Harbor Seal',            'taxon_id': TAXON_IDS['harbor_seal'],           'color': '#6B8E5A'},
-            {'label': 'Steller Sea Lion',       'taxon_id': TAXON_IDS['steller_sea_lion'],      'color': '#CD853F'},
-            {'label': 'California Sea Lion',    'taxon_id': TAXON_IDS['california_sea_lion'],   'color': '#B8860B'},
-            {'label': 'N. Elephant Seal',       'taxon_id': TAXON_IDS['northern_elephant_seal'],'color': '#607080'},
-            {'label': 'Sea Otter',              'taxon_id': TAXON_IDS['sea_otter'],             'color': '#8B6914'},
-            {'label': 'Manatee',                'taxon_id': TAXON_IDS['manatee'],               'color': '#7B9E9E'},
-            {'label': 'Walrus',                 'taxon_id': TAXON_IDS['walrus'],                'color': '#A0522D'},
+            # Baleen whales
+            {'label': 'Blue Whale',              'taxon_id': TAXON_IDS['blue_whale'],               'color': '#003399'},
+            {'label': 'Humpback Whale',          'taxon_id': TAXON_IDS['humpback_whale'],           'color': '#1E90FF'},
+            {'label': 'Gray Whale',              'taxon_id': TAXON_IDS['gray_whale'],               'color': '#778899'},
+            # Toothed whales & dolphins
+            {'label': 'Orca',                    'taxon_id': TAXON_IDS['orca'],                     'color': '#101010'},
+            {'label': 'Bottlenose Dolphin',      'taxon_id': TAXON_IDS['bottlenose_dolphin'],       'color': '#4169E1'},
+            {'label': 'Common Dolphin',          'taxon_id': TAXON_IDS['common_dolphin'],           'color': '#00CED1'},
+            {'label': 'Pac. White-sided Dolphin','taxon_id': TAXON_IDS['pacific_whitesided_dolphin'],'color': '#87CEEB'},
+            {'label': "Risso's Dolphin",         'taxon_id': TAXON_IDS['rissos_dolphin'],           'color': '#D8D8D8'},
+            {'label': 'N. Right Whale Dolphin',  'taxon_id': TAXON_IDS['northern_right_whale_dolphin'],'color': '#191970'},
+            {'label': "Dall's Porpoise",         'taxon_id': TAXON_IDS['dalls_porpoise'],           'color': '#2F4F4F'},
+            {'label': 'Beluga Whale',            'taxon_id': TAXON_IDS['beluga_whale'],             'color': '#B0D8F0'},
+            # Pinnipeds
+            {'label': 'Harbor Seal',             'taxon_id': TAXON_IDS['harbor_seal'],              'color': '#6B8E5A'},
+            {'label': 'Steller Sea Lion',        'taxon_id': TAXON_IDS['steller_sea_lion'],         'color': '#CD853F'},
+            {'label': 'California Sea Lion',     'taxon_id': TAXON_IDS['california_sea_lion'],      'color': '#B8860B'},
+            {'label': 'Northern Fur Seal',       'taxon_id': TAXON_IDS['northern_fur_seal'],        'color': '#BC8F5F'},
+            {'label': 'Guadalupe Fur Seal',      'taxon_id': TAXON_IDS['guadalupe_fur_seal'],       'color': '#6B3A2A'},
+            {'label': 'N. Elephant Seal',        'taxon_id': TAXON_IDS['northern_elephant_seal'],   'color': '#607080'},
+            {'label': 'Walrus',                  'taxon_id': TAXON_IDS['walrus'],                   'color': '#A0522D'},
+            # Sea mammals
+            {'label': 'Sea Otter',               'taxon_id': TAXON_IDS['sea_otter'],                'color': '#8B6914'},
+            {'label': 'Manatee',                 'taxon_id': TAXON_IDS['manatee'],                  'color': '#7B9E9E'},
         ],
     },
     'other': {
