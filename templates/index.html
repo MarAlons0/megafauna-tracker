@@ -650,6 +650,14 @@ function clearMarkers() {
     markerLayer = L.layerGroup().addTo(map);
 }
 
+// Deterministic jitter: spreads stacked markers into a tight cluster (~40m radius).
+// Keyed on observation ID so the same marker always lands in the same spot.
+function jitterCoords(id, lat, lng) {
+    const angle = (id * 2.39996) % (2 * Math.PI);  // golden angle → even spread
+    const r = 0.00035;                               // ~39m at mid-latitudes
+    return [lat + r * Math.sin(angle), lng + r * Math.cos(angle)];
+}
+
 function renderMarkers(observations) {
     let added = 0;
     for (const obs of observations) {
@@ -657,7 +665,8 @@ function renderMarkers(observations) {
         const group = SPECIES_GROUPS[obs.group] || {};
         // In drill mode use per-species color; fall back to group color
         const color = (drillGroup && TAXON_TO_COLOR[obs.taxon_id]) || group.color || '#aaa';
-        const marker = L.circleMarker([obs.lat, obs.lng], {
+        const [jLat, jLng] = jitterCoords(obs.id || 0, obs.lat, obs.lng);
+        const marker = L.circleMarker([jLat, jLng], {
             radius: 9,
             fillColor: color,
             color: '#fff',
