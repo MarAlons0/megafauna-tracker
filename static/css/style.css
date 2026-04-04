@@ -82,15 +82,29 @@ html, body {
 }
 
 /* ── Main Layout ─────────────────────────────────────────────────── */
+
+/* Desktop: body is a flex column so main-layout fills whatever space
+   remains after the navbar, controls bar, and title bar — no hardcoded
+   height approximation needed. */
+@media (min-width: 768px) {
+    body {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        overflow: hidden;
+    }
+}
+
 .main-layout {
     display: flex;
-    height: calc(100vh - var(--navbar-h) - var(--controls-h));
     overflow: hidden;
 }
 
-/* Fill remaining height dynamically via JS */
-.main-layout {
-    height: calc(100dvh - 56px - 80px);  /* navbar + approx controls */
+@media (min-width: 768px) {
+    .main-layout {
+        flex: 1 1 0;   /* fill remaining height */
+        min-height: 0; /* allow shrinking inside flex parent */
+    }
 }
 
 /* Map fills left ~65% on desktop */

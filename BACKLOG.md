@@ -4,10 +4,30 @@ Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in p
 
 ---
 
-## UX & Mobile
+## UX & Mobile — Map
+
+- [ ] **Heatmap — trend visualization** — toggle overlay on the map showing whether sightings are increasing or decreasing at each location over the last 30 days.
+
+  **Library:** `leaflet.heat` (CDN `unpkg.com/leaflet.heat@0.2.0`) — takes `[lat, lng, intensity]` arrays, overlays directly on the Leaflet map.
+
+  **Implementation:**
+  - Add a "Heatmap" toggle button to the controls bar
+  - When activated: fetch 30 days of observations for the current location (re-use `/sightings?days=30`), hide dot markers, render heat layer
+  - Split the 30-day window into two 15-day halves; count observations per ~1km grid cell (`lat/lng` rounded to 2 decimal places) in each half
+  - Map intensity to trend: `0.0` = strongly decreasing · `0.5` = stable · `1.0` = strongly increasing
+  - Gradient: blue (`#4363d8`) → white (`#ffffff`) → red (`#e41a1c`)
+  - Legend updates to: 🔴 Increasing · ⚪ Stable · 🔵 Decreasing (days 1–15 vs 16–30)
+  - Heatmap respects active group/drill-down filters
+  - Reset heatmap state (clear cached observations, remove layer) when location changes
+  - Observation field names: `lat` / `lng` / `observed_on` (iNaturalist format — different from bird-tracker's `latitude` / `longitude` / `timestamp`)
+
+  **Data density caveat (key difference from bird-tracker):** iNaturalist megafauna sightings are far sparser than eBird data. In low-density areas a 30-day window may have too few observations per grid cell for trend comparison to be meaningful. Mitigations:
+  - Use a coarser grid (1 decimal place ≈ 11km) as a fallback if fewer than ~50 total observations are returned
+  - If total observations < 20, show a "Not enough data for trend view — showing density only" notice and render a plain density heatmap (intensity = total count, normalized) rather than a trend heatmap
+  - Consider offering a 90-day or 180-day window option for the heatmap specifically, since iNaturalist supports up to 365 days (unlike eBird's 30-day cap)
 
 - [ ] **iPhone-first layout overhaul** — audit and align UI with Bird Tracker conventions; ensure touch targets, font sizes, and panel layout work well on iPhone; map and feed should be usable one-handed while in a vehicle
-- [ ] **Time-dependence visualization** — show whether sightings are trending up or down over the selected time window; visually distinguish recent vs. older observations (e.g., marker opacity or color gradient by age; mini sparkline or bar chart in the sidebar)
+- [ ] **Time-dependence visualization** — visually distinguish recent vs. older observations (e.g., marker opacity or color gradient by age; mini sparkline or bar chart in the sidebar). Note: the heatmap item above covers trend direction; this is about per-marker age encoding on the dot view.
 - [ ] **Geolocation auto-center** — auto-pan map to user's current GPS position on load (already wired up via "My Location" button; make it more prominent or trigger automatically on mobile)
 
 ---

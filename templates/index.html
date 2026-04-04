@@ -90,6 +90,19 @@
             </button>
         </div>
 
+        <!-- Heatmap Toggle -->
+        <div class="col-auto d-flex align-items-center gap-1">
+            <button id="btn-heatmap" class="btn btn-sm btn-outline-secondary" title="Toggle trend heatmap">
+                <i class="fas fa-fire me-1"></i>Heatmap
+            </button>
+            <select id="heatmap-days" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto;" title="Heatmap time window">
+                <option value="30">30d</option>
+                <option value="90">90d</option>
+                <option value="180" selected>180d</option>
+                <option value="365">1yr</option>
+            </select>
+        </div>
+
     </div>
 
     <!-- Species Filter Row -->
@@ -222,6 +235,21 @@ let currentPage = 1;
 let totalAvailable = 0;
 let drillGroup = null;  // null = all-groups mode, string = group key being drilled
 
+// Heatmap state
+let heatmapActive = false;
+let heatLayer = null;
+let heatObservations = [];   // 30-day fetch cached for current location/filters
+let heatDensityOnly = false; // true when obs count too low for trend view
+
+// Gradient: blue (decreasing) → white (stable) → red (increasing)
+const HEAT_GRADIENT = {
+    0.0: '#4363d8',
+    0.35: '#aaaaff',
+    0.5: '#ffffff',
+    0.65: '#ffaaaa',
+    1.0: '#e41a1c',
+};
+
 // ADF&G coverage by segment key (null = no coverage for that segment)
 const SEGMENT_ADFG_COVERAGE = {
     {% for key, seg in route_segments.items() %}'{{ key }}': {{ seg.adfg_coverage | tojson }}{% if not loop.last %},{% endif %}
@@ -249,7 +277,28 @@ function updateMapLegend() {
     mapLegend = L.control({ position: 'topright' });
     mapLegend.onAdd = function () {
         const div = L.DomUtil.create('div', 'map-legend');
-        if (drillGroup) {
+        const dot = (c) => `<span class="legend-dot" style="background:${c};"></span>`;
+
+        if (heatmapActive) {
+            const scope = drillGroup ? SPECIES_GROUPS[drillGroup].label : 'All Groups';
+            const totalDays = parseInt(document.getElementById('heatmap-days').value);
+            const half = totalDays / 2;
+            const windowLabel = totalDays === 365 ? '1 year' : `${totalDays} days`;
+            if (heatDensityOnly) {
+                div.innerHTML = `<b>Density (${windowLabel})</b><br>
+                    <div style="font-size:11px;color:#aaa;margin-bottom:4px;">${scope}</div>
+                    <div style="font-size:10px;color:#f0a030;line-height:1.4;">
+                        Not enough data for<br>trend view — showing<br>density only</div>`;
+            } else {
+                div.innerHTML = `<b>Trend (${windowLabel})</b><br>
+                    <div style="font-size:11px;color:#aaa;margin-bottom:4px;">${scope}</div>
+                    <div class="legend-item">${dot('#e41a1c')} Increasing</div>
+                    <div class="legend-item">${dot('#ffffff')} Stable</div>
+                    <div class="legend-item">${dot('#4363d8')} Decreasing</div>
+                    <div style="font-size:10px;color:#888;margin-top:6px;line-height:1.4;">
+                        Days 1–${half} vs ${half+1}–${totalDays}</div>`;
+            }
+        } else if (drillGroup) {
             const group = SPECIES_GROUPS[drillGroup];
             div.innerHTML = `<b style="color:${group.color};">${group.label}</b><br>`;
             group.members.forEach(m => {
@@ -526,6 +575,14 @@ async function loadSightings(appendPage = false) {
         allObservations = [];
         totalAvailable = 0;
         clearMarkers();
+        // Reset heatmap — cached data is stale for the new query
+        heatObservations = [];
+        if (heatmapActive) {
+            heatmapActive = false;
+            if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+            const hBtn = document.getElementById('btn-heatmap');
+            if (hBtn) { hBtn.classList.remove('active'); hBtn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap'; }
+        }
     }
 
     setStatus('<i class="fas fa-spinner fa-spin me-1"></i>Loading sightings…');
@@ -642,6 +699,17 @@ document.getElementById('btn-load-more').addEventListener('click', function () {
     loadSightings(true);
 });
 
+document.getElementById('btn-heatmap').addEventListener('click', toggleHeatmap);
+
+document.getElementById('heatmap-days').addEventListener('change', function () {
+    if (!heatmapActive) return;
+    // Re-fetch with new window and re-render
+    heatObservations = [];
+    if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    heatmapActive = false;
+    toggleHeatmap();
+});
+
 // ── Markers ─────────────────────────────────────────────────────────
 function clearMarkers() {
     if (markerLayer) {
@@ -689,6 +757,152 @@ function renderMarkers(observations) {
         added++;
     }
     return added;
+}
+
+// ── Heatmap ──────────────────────────────────────────────────────────
+
+function computeHeatData(observations) {
+    const now = Date.now();
+    const totalDays = parseInt(document.getElementById('heatmap-days').value);
+    const halfDays = totalDays / 2;
+    const cutoff = now - halfDays * 86400000;    // midpoint (recent window starts here)
+    const oldest = now - totalDays * 86400000;   // full window start
+
+    // Read active filters (mirror renderMarkers logic)
+    const checkedGroups = drillGroup ? null : new Set(
+        Array.from(document.querySelectorAll('.species-group-check:checked')).map(el => el.value)
+    );
+    const checkedTaxons = drillGroup ? new Set(
+        Array.from(document.querySelectorAll('.species-member-check:checked')).map(el => el.value)
+    ) : null;
+
+    // Grid resolution: coarse (toFixed(1) ≈ 11km) for sparse megafauna data;
+    // finer (toFixed(2) ≈ 1km) only if we have ≥50 observations.
+    const precision = observations.length >= 50 ? 2 : 1;
+
+    const locMap = {};
+    let filteredCount = 0;
+
+    for (const obs of observations) {
+        if (obs.lat == null || obs.lng == null) continue;
+
+        if (drillGroup) {
+            if (obs.group !== drillGroup) continue;
+            if (!checkedTaxons.has(String(obs.taxon_id))) continue;
+        } else {
+            if (!checkedGroups.has(obs.group)) continue;
+        }
+
+        filteredCount++;
+        const key = `${obs.lat.toFixed(precision)},${obs.lng.toFixed(precision)}`;
+        if (!locMap[key]) locMap[key] = { lat: obs.lat, lng: obs.lng, recent: 0, older: 0, total: 0 };
+
+        // observed_on is "YYYY-MM-DD" — parse as UTC midnight (fine for day-level comparison)
+        const obsTime = new Date(obs.observed_on).getTime();
+        if (obsTime >= cutoff) locMap[key].recent++;
+        else if (obsTime >= oldest) locMap[key].older++;
+        locMap[key].total++;
+    }
+
+    const densityOnly = filteredCount < 20;
+    const points = [];
+
+    if (densityOnly) {
+        // Not enough data for trend — show plain density (normalized count)
+        const maxTotal = Math.max(...Object.values(locMap).map(l => l.total), 1);
+        for (const loc of Object.values(locMap)) {
+            points.push([loc.lat, loc.lng, loc.total / maxTotal]);
+        }
+    } else {
+        // Trend mode: intensity 0=strongly decreasing, 0.5=stable, 1=strongly increasing
+        for (const loc of Object.values(locMap)) {
+            if (loc.recent === 0 && loc.older === 0) continue;
+            let intensity;
+            if (loc.older === 0) {
+                intensity = 0.85;   // new location this period → increasing
+            } else if (loc.recent === 0) {
+                intensity = 0.15;   // gone this period → decreasing
+            } else {
+                const ratio = (loc.recent - loc.older) / (loc.recent + loc.older);
+                intensity = (ratio + 1) / 2;
+            }
+            points.push([loc.lat, loc.lng, intensity]);
+        }
+    }
+
+    return { points, densityOnly };
+}
+
+async function toggleHeatmap() {
+    const btn = document.getElementById('btn-heatmap');
+    heatmapActive = !heatmapActive;
+
+    if (heatmapActive) {
+        if (!currentCenter) {
+            heatmapActive = false;
+            return;
+        }
+        btn.classList.add('active');
+        btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap <i class="fas fa-check ms-1" style="font-size:10px;"></i>';
+
+        // Fetch 30-day data if not cached for this location
+        if (heatObservations.length === 0) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Loading…';
+            try {
+                const params = new URLSearchParams({
+                    lat: currentCenter.lat,
+                    lng: currentCenter.lng,
+                    radius: document.getElementById('radius-select').value,
+                    days: document.getElementById('heatmap-days').value,
+                    quality_grade: document.getElementById('quality-select').value,
+                });
+                const segmentKey = document.getElementById('segment-select').value;
+                if (drillGroup) {
+                    Array.from(document.querySelectorAll('.species-member-check:checked'))
+                        .forEach(el => params.append('taxon_id', el.value));
+                } else {
+                    Array.from(document.querySelectorAll('.species-group-check:checked'))
+                        .forEach(el => params.append('groups', el.value));
+                    if (segmentKey) params.append('segment', segmentKey);
+                }
+                const resp = await fetch(`/sightings?${params}`);
+                const data = await resp.json();
+                heatObservations = data.observations || [];
+            } catch (e) {
+                console.error('Heatmap fetch error:', e);
+                heatmapActive = false;
+                btn.disabled = false;
+                btn.classList.remove('active');
+                btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap';
+                return;
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap <i class="fas fa-check ms-1" style="font-size:10px;"></i>';
+        }
+
+        // Hide markers (circleMarker is L.Path — must use setStyle, not setOpacity)
+        markerLayer.eachLayer(m => m.setStyle({ opacity: 0, fillOpacity: 0 }));
+
+        const { points, densityOnly } = computeHeatData(heatObservations);
+        heatDensityOnly = densityOnly;
+        heatLayer = L.heatLayer(points, {
+            radius: 35,
+            blur: 25,
+            maxZoom: 13,
+            max: 1.0,
+            minOpacity: 0.4,
+            gradient: HEAT_GRADIENT,
+        }).addTo(map);
+
+        updateMapLegend();
+    } else {
+        btn.classList.remove('active');
+        btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap';
+        if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+        markerLayer.eachLayer(m => m.setStyle({ opacity: 1, fillOpacity: 0.85 }));
+        updateMapLegend();
+    }
 }
 
 // ── Feed ─────────────────────────────────────────────────────────────
