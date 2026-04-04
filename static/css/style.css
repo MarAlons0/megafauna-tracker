@@ -444,10 +444,10 @@ body.analysis-page .main-layout {
         overflow: visible;
     }
 
-    /* Map fills viewport height minus safe areas and bottom nav */
+    /* Map: 65dvh leaves room for the observations panel to scroll below */
     .map-panel {
         flex: none;
-        height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 56px);
+        height: 65dvh;
         min-height: 300px;
         border-radius: 0;  /* full-width on mobile, no rounded corners */
     }
