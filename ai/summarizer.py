@@ -166,7 +166,15 @@ class MegafaunaSummarizer:
                 bucket_lines.append(f"  {bucket['period']}: {species_str}")
         trend_text = '\n'.join(bucket_lines) if bucket_lines else '  No time-bucketed data available.'
 
-        adfg_section = f"\nADF&G CONDITIONS REPORT:\n{adfg_context}\n" if adfg_context else ""
+        adfg_section = (
+            f"\nADF&G ALASKA FIELD CONDITIONS:\n{adfg_context}\n"
+            f"(These are fishery-management reports. Interpret them for wildlife implications: "
+            f"salmon run intensity is a direct predictor of bear density and activity at river "
+            f"sites like Russian River; fishing closures and access restrictions affect human "
+            f"presence and therefore wildlife behavior; any wildlife sightings or trail alerts "
+            f"mentioned are directly relevant. Do not discuss fishing — translate the data into "
+            f"bear activity levels, wildlife safety, and viewing conditions.)\n"
+        ) if adfg_context else ""
 
         prompt = f"""Today is {today}. Analyze iNaturalist wildlife observations within {radius_miles} miles of {location_name} over the past {days} days.
 

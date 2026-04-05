@@ -91,16 +91,16 @@
         </div>
 
         <!-- Heatmap Toggle -->
-        <div class="col-auto d-flex align-items-center gap-1">
-            <button id="btn-heatmap" class="btn btn-sm btn-outline-secondary" title="Toggle trend heatmap">
-                <i class="fas fa-fire me-1"></i>Heatmap
-            </button>
-            <select id="heatmap-days" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto;" title="Heatmap time window">
-                <option value="30">30d</option>
-                <option value="90">90d</option>
-                <option value="180" selected>180d</option>
-                <option value="365">1yr</option>
-            </select>
+        <div class="col-auto">
+            <div class="input-group input-group-sm">
+                <button id="btn-heatmap" class="btn btn-outline-warning" title="Switch to heatmap view">
+                    <i class="fas fa-fire me-1"></i>Heatmap
+                </button>
+                <select id="heatmap-mode" class="form-select bg-dark text-light border-secondary" style="width:auto;" title="Momentum: 1st half vs 2nd half of window · VYA: vs same period last year">
+                    <option value="split">Momentum</option>
+                    <option value="year">VYA</option>
+                </select>
+            </div>
         </div>
 
     </div>
@@ -148,18 +148,25 @@
     <!-- Right Sidebar: Feed + Conditions -->
     <div class="sidebar-panel">
 
-        <!-- Conditions Card -->
-        <div class="conditions-card p-3 border-bottom border-secondary">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+        <!-- Conditions Card (collapsed by default) -->
+        <div class="conditions-card border-bottom border-secondary">
+            <div class="px-3 py-2 d-flex justify-content-between align-items-center"
+                 style="cursor:pointer;" onclick="toggleConditions()">
                 <h6 class="mb-0 text-warning">
                     <i class="fas fa-binoculars me-1"></i>Conditions
                 </h6>
-                <span id="conditions-updated" class="text-secondary small"></span>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="conditions-updated" class="text-secondary small"></span>
+                    <i class="fas fa-chevron-right text-secondary" id="conditions-chevron"
+                       style="font-size:11px; transition:transform 0.2s;"></i>
+                </div>
             </div>
-            <div id="conditions-content" class="text-light small">
-                <span class="text-secondary small fst-italic">
-                    <i class="fas fa-spinner fa-spin me-1"></i>Loading ADF&amp;G reports…
-                </span>
+            <div id="conditions-body" style="display:none;" class="px-3 pb-3">
+                <div id="conditions-content" class="text-light small">
+                    <span class="text-secondary small fst-italic">
+                        <i class="fas fa-spinner fa-spin me-1"></i>Loading ADF&amp;G reports…
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -281,9 +288,12 @@ function updateMapLegend() {
 
         if (heatmapActive) {
             const scope = drillGroup ? SPECIES_GROUPS[drillGroup].label : 'All Groups';
-            const totalDays = parseInt(document.getElementById('heatmap-days').value);
-            const half = totalDays / 2;
+            const totalDays = parseInt(document.getElementById('days-select').value);
+            const mode = document.getElementById('heatmap-mode').value;
             const windowLabel = totalDays === 365 ? '1 year' : `${totalDays} days`;
+            const compareLabel = mode === 'year'
+                ? `Last ${windowLabel}<br>vs same period last year`
+                : `1st half vs 2nd half<br>of ${windowLabel} window`;
             if (heatDensityOnly) {
                 div.innerHTML = `<b>Density (${windowLabel})</b><br>
                     <div style="font-size:11px;color:#aaa;margin-bottom:4px;">${scope}</div>
@@ -296,7 +306,7 @@ function updateMapLegend() {
                     <div class="legend-item">${dot('#ffffff')} Stable</div>
                     <div class="legend-item">${dot('#4363d8')} Decreasing</div>
                     <div style="font-size:10px;color:#888;margin-top:6px;line-height:1.4;">
-                        Days 1–${half} vs ${half+1}–${totalDays}</div>`;
+                        ${compareLabel}</div>`;
             }
         } else if (drillGroup) {
             const group = SPECIES_GROUPS[drillGroup];
@@ -581,7 +591,12 @@ async function loadSightings(appendPage = false) {
             heatmapActive = false;
             if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
             const hBtn = document.getElementById('btn-heatmap');
-            if (hBtn) { hBtn.classList.remove('active'); hBtn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap'; }
+            if (hBtn) {
+                hBtn.classList.replace('btn-warning', 'btn-outline-warning');
+                hBtn.classList.remove('text-dark');
+                hBtn.title = 'Switch to heatmap view';
+                hBtn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap';
+            }
         }
     }
 
@@ -671,6 +686,8 @@ async function loadSightings(appendPage = false) {
             days: parseInt(days),
             quality_grade: qualityGrade,
             groups: drillGroup ? [] : Array.from(document.querySelectorAll('.species-group-check:checked')).map(e => e.value),
+            segment: segmentKey || '',
+            adfg_coverage: segmentKey ? !!SEGMENT_ADFG_COVERAGE[segmentKey] : false,
         }));
 
     } catch (err) {
@@ -701,14 +718,29 @@ document.getElementById('btn-load-more').addEventListener('click', function () {
 
 document.getElementById('btn-heatmap').addEventListener('click', toggleHeatmap);
 
-document.getElementById('heatmap-days').addEventListener('change', function () {
+document.getElementById('heatmap-mode').addEventListener('change', function () {
     if (!heatmapActive) return;
-    // Re-fetch with new window and re-render
+    // Mode change requires a new fetch (different window size for year-ago)
     heatObservations = [];
     if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
     heatmapActive = false;
     toggleHeatmap();
 });
+
+// Invalidate heatmap cache when main time window changes
+document.getElementById('days-select').addEventListener('change', function () {
+    heatObservations = [];
+    if (heatmapActive) {
+        if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+        heatmapActive = false;
+        const hBtn = document.getElementById('btn-heatmap');
+        hBtn.classList.replace('btn-warning', 'btn-outline-warning');
+        hBtn.classList.remove('text-dark');
+        hBtn.title = 'Switch to heatmap view';
+        hBtn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap';
+        updateMapLegend();
+    }
+}, true);  // capture phase — runs before the existing auto-reload listener
 
 // ── Markers ─────────────────────────────────────────────────────────
 function clearMarkers() {
@@ -763,10 +795,25 @@ function renderMarkers(observations) {
 
 function computeHeatData(observations) {
     const now = Date.now();
-    const totalDays = parseInt(document.getElementById('heatmap-days').value);
-    const halfDays = totalDays / 2;
-    const cutoff = now - halfDays * 86400000;    // midpoint (recent window starts here)
-    const oldest = now - totalDays * 86400000;   // full window start
+    const totalDays = parseInt(document.getElementById('days-select').value);
+    const mode = document.getElementById('heatmap-mode').value;
+
+    // Define the two comparison windows
+    let recentStart, recentEnd, olderStart, olderEnd;
+    if (mode === 'year') {
+        // Recent: last N days; Older: same N-day window 1 year ago
+        recentStart = now - totalDays * 86400000;
+        recentEnd   = now;
+        olderStart  = now - (365 + totalDays) * 86400000;
+        olderEnd    = now - 365 * 86400000;
+    } else {
+        // Split: first half vs second half of the window
+        const halfDays = totalDays / 2;
+        recentStart = now - halfDays * 86400000;
+        recentEnd   = now;
+        olderStart  = now - totalDays * 86400000;
+        olderEnd    = recentStart;
+    }
 
     // Read active filters (mirror renderMarkers logic)
     const checkedGroups = drillGroup ? null : new Set(
@@ -799,8 +846,8 @@ function computeHeatData(observations) {
 
         // observed_on is "YYYY-MM-DD" — parse as UTC midnight (fine for day-level comparison)
         const obsTime = new Date(obs.observed_on).getTime();
-        if (obsTime >= cutoff) locMap[key].recent++;
-        else if (obsTime >= oldest) locMap[key].older++;
+        if (obsTime >= recentStart && obsTime < recentEnd) locMap[key].recent++;
+        else if (obsTime >= olderStart && obsTime < olderEnd) locMap[key].older++;
         locMap[key].total++;
     }
 
@@ -842,19 +889,25 @@ async function toggleHeatmap() {
             heatmapActive = false;
             return;
         }
-        btn.classList.add('active');
-        btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap <i class="fas fa-check ms-1" style="font-size:10px;"></i>';
+        btn.classList.replace('btn-outline-warning', 'btn-warning');
+        btn.classList.add('text-dark');
+        btn.title = 'Switch to observations view';
+        btn.innerHTML = '<i class="fas fa-circle-dot me-1"></i>Observations';
 
         // Fetch 30-day data if not cached for this location
         if (heatObservations.length === 0) {
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Loading…';
             try {
+                const baseDays = parseInt(document.getElementById('days-select').value);
+                const fetchDays = document.getElementById('heatmap-mode').value === 'year'
+                    ? baseDays + 365
+                    : baseDays;
                 const params = new URLSearchParams({
                     lat: currentCenter.lat,
                     lng: currentCenter.lng,
                     radius: document.getElementById('radius-select').value,
-                    days: document.getElementById('heatmap-days').value,
+                    days: fetchDays,
                     quality_grade: document.getElementById('quality-select').value,
                 });
                 const segmentKey = document.getElementById('segment-select').value;
@@ -873,12 +926,14 @@ async function toggleHeatmap() {
                 console.error('Heatmap fetch error:', e);
                 heatmapActive = false;
                 btn.disabled = false;
-                btn.classList.remove('active');
+                btn.classList.replace('btn-warning', 'btn-outline-warning');
+                btn.classList.remove('text-dark');
+                btn.title = 'Switch to heatmap view';
                 btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap';
                 return;
             }
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap <i class="fas fa-check ms-1" style="font-size:10px;"></i>';
+            btn.innerHTML = '<i class="fas fa-circle-dot me-1"></i>Observations';
         }
 
         // Hide markers (circleMarker is L.Path — must use setStyle, not setOpacity)
@@ -897,7 +952,9 @@ async function toggleHeatmap() {
 
         updateMapLegend();
     } else {
-        btn.classList.remove('active');
+        btn.classList.replace('btn-warning', 'btn-outline-warning');
+        btn.classList.remove('text-dark');
+        btn.title = 'Switch to heatmap view';
         btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap';
         if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
         markerLayer.eachLayer(m => m.setStyle({ opacity: 1, fillOpacity: 0.85 }));
@@ -966,6 +1023,15 @@ function haversineMiles(lat1, lng1, lat2, lng2) {
         Math.cos(lat2 * Math.PI / 180) *
         Math.sin(dLng / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ── Conditions Card collapse toggle ─────────────────────────────────
+function toggleConditions() {
+    const body = document.getElementById('conditions-body');
+    const chevron = document.getElementById('conditions-chevron');
+    const open = body.style.display === 'none';
+    body.style.display = open ? '' : 'none';
+    chevron.style.transform = open ? 'rotate(90deg)' : '';
 }
 
 // ── Conditions Card ──────────────────────────────────────────────────

@@ -142,20 +142,26 @@ async function loadAndAnalyze() {
     // 3. Compute time buckets
     const bucketData = bucketObservations(allObservations, locationState.days);
 
-    // 4. Fetch ADF&G conditions if available
+    // 4. Fetch ADF&G conditions only when the selected segment has coverage
     let adfgContext = null;
-    try {
-        const cr = await fetch('/local-conditions');
-        const cd = await cr.json();
-        if (cd && cd.available !== false && cd.ai_summary) {
-            const s = cd.ai_summary;
-            const parts = [];
-            if (s.conditions_summary) parts.push(s.conditions_summary);
-            if (s.sightings?.length) parts.push('Sightings: ' + s.sightings.join(', '));
-            if (s.alerts?.length) parts.push('Alerts: ' + s.alerts.join(', '));
-            if (parts.length) adfgContext = parts.join(' | ');
-        }
-    } catch (_) {}
+    if (locationState.adfg_coverage) {
+        try {
+            const cr = await fetch('/local-conditions');
+            const cd = await cr.json();
+            if (cd && cd.available !== false) {
+                const parts = [];
+                if (cd.ai_summary?.conditions_summary)
+                    parts.push(cd.ai_summary.conditions_summary);
+                if (cd.ai_summary?.sightings?.length)
+                    parts.push('Wildlife sightings reported: ' + cd.ai_summary.sightings.join(', '));
+                if (cd.ai_summary?.alerts?.length)
+                    parts.push('Alerts/closures: ' + cd.ai_summary.alerts.join('; '));
+                if (cd.areas_covered?.length)
+                    parts.push('Areas covered: ' + cd.areas_covered.join(', '));
+                if (parts.length) adfgContext = parts.join('\n');
+            }
+        } catch (_) {}
+    }
 
     // 5. POST to /api/analyze
     try {

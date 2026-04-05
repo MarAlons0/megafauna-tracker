@@ -72,6 +72,23 @@ Six top-level groups, each with distinct species colors visible in drill-down mo
 
 All taxon IDs sourced from the iNaturalist API. See `species_config.py` for the full list.
 
+---
+
+## Heatmap
+
+The **Heatmap** button in the filters bar switches from dot markers to a color-coded trend overlay. Red = increasing activity, white = stable, blue = decreasing.
+
+Two comparison modes, selectable next to the button:
+
+| Mode | What it compares | Best used with |
+|---|---|---|
+| **Momentum** | 1st half vs 2nd half of the selected time window | 30–180 day windows — catches recent shifts in activity |
+| **VYA** (vs Year Ago) | Current window vs the same window 1 year earlier | 60–365 day windows — detects year-over-year population changes |
+
+**Note on data density:** iNaturalist megafauna sightings are sparser than bird observation data. In low-density areas or short windows the heatmap may fall back to a plain density view (brighter = more sightings) with a notice in the legend. Wider windows (180d or 1yr) and larger radii produce more reliable trend data.
+
+The heatmap respects active species group and drill-down filters — switch to Bears drill-down before activating to see bear-specific trends only.
+
 ### Adding or changing species
 
 iNaturalist taxon IDs have no meaningful structure — neighboring numbers belong to completely unrelated organisms, and the API accepts any integer silently, returning whatever that ID actually points to. **Never guess or derive an ID from a nearby species.**
@@ -176,7 +193,12 @@ Set `ANTHROPIC_API_KEY` as an environment variable in the Render dashboard. No d
 
 ## Roadmap
 
-### v0.5.3 — Current
+### v0.5.4 — Current
+- Heatmap overlay with Momentum and VYA comparison modes (see below)
+- ADF&G Conditions card collapsed by default; fed silently to AI Analysis for Alaska segments
+- Desktop layout fix: controls bar no longer clips at top of viewport
+
+### v0.5.3
 - Free-text location search (Nominatim geocoder) with autocomplete dropdown
 - 6 species groups · 39 species · 11 Quick Pick segments covering all of North America
 - Species drill-down: click group → per-species checkboxes with unique colors per species
