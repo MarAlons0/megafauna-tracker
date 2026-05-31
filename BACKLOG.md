@@ -26,6 +26,8 @@ Items are not ranked by priority. Status: `[ ]` open · `[x]` done · `[-]` in p
   - If total observations < 20, show a "Not enough data for trend view — showing density only" notice and render a plain density heatmap (intensity = total count, normalized) rather than a trend heatmap
   - Consider offering a 90-day or 180-day window option for the heatmap specifically, since iNaturalist supports up to 365 days (unlike eBird's 30-day cap)
 
+- [x] **Marker clustering** — Cluster toggle button groups nearby markers into `L.markerClusterGroup` bubbles; cluster icons are neutral gray in all-groups mode, switch to active group color in drill-down; size scales with count (30/38/46 px); mutually exclusive with Heatmap in both directions; Uncluster returns to jittered dot view.
+
 - [ ] **iPhone-first layout overhaul** — audit and align UI with Bird Tracker conventions; ensure touch targets, font sizes, and panel layout work well on iPhone; map and feed should be usable one-handed while in a vehicle
 - [ ] **Time-dependence visualization** — visually distinguish recent vs. older observations (e.g., marker opacity or color gradient by age; mini sparkline or bar chart in the sidebar). Note: the heatmap item above covers trend direction; this is about per-marker age encoding on the dot view.
 - [ ] **Geolocation auto-center** — auto-pan map to user's current GPS position on load (already wired up via "My Location" button; make it more prominent or trigger automatically on mobile)
