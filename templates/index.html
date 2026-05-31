@@ -90,6 +90,14 @@
             </button>
         </div>
 
+        <!-- Cluster Toggle -->
+        <div class="col-auto">
+            <button id="btn-cluster" class="btn btn-outline-secondary btn-sm"
+                    title="Group nearby markers into clusters">
+                <i class="fas fa-layer-group me-1"></i>Cluster
+            </button>
+        </div>
+
         <!-- Heatmap Toggle -->
         <div class="col-auto">
             <div class="input-group input-group-sm">
@@ -244,6 +252,7 @@ let drillGroup = null;  // null = all-groups mode, string = group key being dril
 
 // Heatmap state
 let heatmapActive = false;
+let clusterActive = false;
 let heatLayer = null;
 let heatObservations = [];   // 30-day fetch cached for current location/filters
 let heatDensityOnly = false; // true when obs count too low for trend view
@@ -716,6 +725,7 @@ document.getElementById('btn-load-more').addEventListener('click', function () {
     loadSightings(true);
 });
 
+document.getElementById('btn-cluster').addEventListener('click', toggleCluster);
 document.getElementById('btn-heatmap').addEventListener('click', toggleHeatmap);
 
 document.getElementById('heatmap-mode').addEventListener('change', function () {
@@ -743,11 +753,54 @@ document.getElementById('days-select').addEventListener('change', function () {
 }, true);  // capture phase — runs before the existing auto-reload listener
 
 // ── Markers ─────────────────────────────────────────────────────────
+function createClusterIcon(cluster) {
+    const count = cluster.getChildCount();
+    const color = drillGroup ? (SPECIES_GROUPS[drillGroup].color || '#555') : '#555';
+    const size  = count < 10 ? 30 : count < 100 ? 38 : 46;
+    const fs    = size < 38 ? 12 : 14;
+    return L.divIcon({
+        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;` +
+              `background:${color};border:2.5px solid rgba(255,255,255,0.75);` +
+              `display:flex;align-items:center;justify-content:center;` +
+              `color:#fff;font-weight:700;font-size:${fs}px;` +
+              `box-shadow:0 2px 6px rgba(0,0,0,0.45);">${count}</div>`,
+        className: '',
+        iconSize:   [size, size],
+        iconAnchor: [size / 2, size / 2],
+    });
+}
+
+function hideObservationLayer() {
+    if (clusterActive) {
+        map.removeLayer(markerLayer);
+    } else {
+        markerLayer.eachLayer(m => m.setStyle({ opacity: 0, fillOpacity: 0 }));
+    }
+}
+
+function showObservationLayer() {
+    if (clusterActive) {
+        map.addLayer(markerLayer);
+    } else {
+        markerLayer.eachLayer(m => m.setStyle({ opacity: 1, fillOpacity: 0.85 }));
+    }
+}
+
 function clearMarkers() {
     if (markerLayer) {
         map.removeLayer(markerLayer);
     }
-    markerLayer = L.layerGroup().addTo(map);
+    markerLayer = clusterActive
+        ? L.markerClusterGroup({
+              iconCreateFunction: createClusterIcon,
+              maxClusterRadius:   60,
+              spiderfyOnMaxZoom:  true,
+              showCoverageOnHover: false,
+              zoomToBoundsOnClick: true,
+              animate:            true,
+          })
+        : L.layerGroup();
+    map.addLayer(markerLayer);
 }
 
 // Deterministic jitter: spreads stacked markers into a tight cluster (~40m radius).
@@ -765,7 +818,9 @@ function renderMarkers(observations) {
         const group = SPECIES_GROUPS[obs.group] || {};
         // In drill mode use per-species color; fall back to group color
         const color = (drillGroup && TAXON_TO_COLOR[obs.taxon_id]) || group.color || '#aaa';
-        const [jLat, jLng] = jitterCoords(obs.id || 0, obs.lat, obs.lng);
+        const [jLat, jLng] = clusterActive
+            ? [obs.lat, obs.lng]
+            : jitterCoords(obs.id || 0, obs.lat, obs.lng);
         const marker = L.circleMarker([jLat, jLng], {
             radius: 9,
             fillColor: color,
@@ -880,6 +935,35 @@ function computeHeatData(observations) {
     return { points, densityOnly };
 }
 
+function toggleCluster() {
+    const btn = document.getElementById('btn-cluster');
+    clusterActive = !clusterActive;
+
+    if (clusterActive) {
+        btn.classList.replace('btn-outline-secondary', 'btn-secondary');
+        btn.innerHTML = '<i class="fas fa-layer-group me-1"></i>Uncluster';
+
+        // Mutually exclusive with heatmap — turn it off silently
+        if (heatmapActive) {
+            heatmapActive = false;
+            if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+            const hBtn = document.getElementById('btn-heatmap');
+            hBtn.classList.replace('btn-warning', 'btn-outline-warning');
+            hBtn.classList.remove('text-dark');
+            hBtn.title = 'Switch to heatmap view';
+            hBtn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap';
+            updateMapLegend();
+        }
+    } else {
+        btn.classList.replace('btn-secondary', 'btn-outline-secondary');
+        btn.innerHTML = '<i class="fas fa-layer-group me-1"></i>Cluster';
+    }
+
+    clearMarkers();
+    renderMarkers(allObservations);
+    updateMapLegend();
+}
+
 async function toggleHeatmap() {
     const btn = document.getElementById('btn-heatmap');
     heatmapActive = !heatmapActive;
@@ -893,6 +977,16 @@ async function toggleHeatmap() {
         btn.classList.add('text-dark');
         btn.title = 'Switch to observations view';
         btn.innerHTML = '<i class="fas fa-circle-dot me-1"></i>Observations';
+
+        // Mutually exclusive with cluster — turn it off silently
+        if (clusterActive) {
+            clusterActive = false;
+            clearMarkers();
+            renderMarkers(allObservations);
+            const cBtn = document.getElementById('btn-cluster');
+            cBtn.classList.replace('btn-secondary', 'btn-outline-secondary');
+            cBtn.innerHTML = '<i class="fas fa-layer-group me-1"></i>Cluster';
+        }
 
         // Fetch 30-day data if not cached for this location
         if (heatObservations.length === 0) {
@@ -936,8 +1030,8 @@ async function toggleHeatmap() {
             btn.innerHTML = '<i class="fas fa-circle-dot me-1"></i>Observations';
         }
 
-        // Hide markers (circleMarker is L.Path — must use setStyle, not setOpacity)
-        markerLayer.eachLayer(m => m.setStyle({ opacity: 0, fillOpacity: 0 }));
+        // Hide markers
+        hideObservationLayer();
 
         const { points, densityOnly } = computeHeatData(heatObservations);
         heatDensityOnly = densityOnly;
@@ -957,7 +1051,7 @@ async function toggleHeatmap() {
         btn.title = 'Switch to heatmap view';
         btn.innerHTML = '<i class="fas fa-fire me-1"></i>Heatmap';
         if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
-        markerLayer.eachLayer(m => m.setStyle({ opacity: 1, fillOpacity: 0.85 }));
+        showObservationLayer();
         updateMapLegend();
     }
 }
