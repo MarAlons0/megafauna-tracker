@@ -14,7 +14,7 @@ import logging
 import os
 import requests as http_requests
 from datetime import datetime
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -53,6 +53,17 @@ def create_app():
             route_segments=ROUTE_SEGMENTS,
             segment_order=SEGMENT_ORDER,
         )
+
+    # ── Favicons (served at site root for Safari bookmarks) ─────────────
+
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/x-icon')
+
+    @app.route('/apple-touch-icon.png')
+    @app.route('/apple-touch-icon-precomposed.png')
+    def apple_touch_icon():
+        return send_from_directory(app.static_folder, 'apple-touch-icon.png', mimetype='image/png')
 
     # ── API ─────────────────────────────────────────────────────────────
 
