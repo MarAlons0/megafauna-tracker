@@ -4,9 +4,15 @@ All notable changes to Megafauna Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/);
 this project adheres to [Semantic Versioning](https://semver.org/) per `VERSIONING.md`.
 
-## [0.5.5] – 2026-05-30
+## [0.5.5] – 2026-06-07
 ### Added
-- Marker clustering toggle on the map.
+- Marker clustering toggle (Cluster / Uncluster button in the filters bar).
+  - Groups nearby markers into `L.markerClusterGroup` bubbles; clicking zooms in, spiderifies at max zoom.
+  - Cluster icons are neutral gray in all-groups mode; switch to the active group's color in species drill-down.
+  - Icon size scales with count: 30 px (< 10) · 38 px (< 100) · 46 px (100+).
+  - Mutually exclusive with Heatmap in both directions — activating one silently deactivates the other.
+  - Markers land at true coordinates in cluster mode (jitter bypassed).
+- `VERSION` file at project root; `app.py` now reads the version from it instead of a hardcoded string.
 
 ## [0.5.4] – 2026-04-05
 ### Added

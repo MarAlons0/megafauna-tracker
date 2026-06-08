@@ -27,7 +27,15 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-APP_VERSION = '0.5.5'
+def _read_version() -> str:
+    version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
+    try:
+        with open(version_file) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return '?.?.?'
+
+APP_VERSION = _read_version()
 
 
 def create_app():
