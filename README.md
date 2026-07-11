@@ -142,7 +142,10 @@ iNaturalist taxon IDs have no meaningful structure — neighboring numbers belon
 | `GET` | `/salmon-count` | ADF&G weir count + bear forecast (stub) |
 | `GET` | `/local-conditions` | ADF&G Region 2 report + Claude summary |
 | `GET` | `/sources` | Status and cache age for all data sources |
+| `POST` | `/api/wildlife-report` | TripPlanner provider endpoint (token-authed) |
 | `GET` | `/health` | Render health check + version |
+
+**`POST /api/wildlife-report`** — implements the shared [Wildlife Report Provider Contract v1.1](../TripPlanner/docs/WILDLIFE_PROVIDER_CONTRACT.md) so Megafauna sightings appear as a section in TripPlanner's Daily Digest. Requires `Authorization: Bearer <MEGAFAUNA_API_TOKEN>`; returns recent megafauna near the requested destination (cached 12h, keyed on lat/lng/radius/recency). Set `MEGAFAUNA_API_TOKEN` in the environment to enable it — the endpoint returns `503` until then.
 
 **`/sightings` parameters:**
 

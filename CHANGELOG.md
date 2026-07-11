@@ -4,6 +4,14 @@ All notable changes to Megafauna Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/);
 this project adheres to [Semantic Versioning](https://semver.org/) per `VERSIONING.md`.
 
+## [0.6.0] – 2026-07-11
+### Added
+- **TripPlanner wildlife-report provider** — `POST /api/wildlife-report` implements the shared Wildlife Report Provider Contract v1.1, so Megafauna sightings appear as a section in TripPlanner's Daily Digest.
+  - Bearer-token auth (timing-safe, `MEGAFAUNA_API_TOKEN`); returns `503` until configured, `401` on bad/missing token, `400` on malformed request.
+  - Maps the request onto the iNaturalist client (`radius_mi` default 50, clamped to ~200 km; `recency_days` window) and transforms observations into the contract's `items[]` shape, most-recent-first, capped at `max_items`.
+  - Responses cached 12h keyed on lat/lng/radius/recency (not `target_date`); null coordinates return a `200` empty section.
+  - New `wildlife_report.py` module; `MEGAFAUNA_API_TOKEN` added to `.env.example`.
+
 ## [0.5.5] – 2026-06-07
 ### Added
 - Marker clustering toggle (Cluster / Uncluster button in the filters bar).

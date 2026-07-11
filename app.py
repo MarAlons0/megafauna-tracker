@@ -10,6 +10,7 @@ Endpoints:
   GET /health                   Render health check
 """
 
+import hmac
 import logging
 import os
 import requests as http_requests
@@ -21,6 +22,7 @@ from dotenv import load_dotenv
 from sources.inaturalist import get_client as get_inaturalist
 from cache import cache_get, cache_set, cache_info
 from species_config import SPECIES_GROUPS, ROUTE_SEGMENTS, SEGMENT_ORDER, ALL_TAXON_IDS
+from wildlife_report import build_report, CONTRACT_VERSION
 
 load_dotenv()
 
@@ -311,6 +313,46 @@ def create_app():
         except Exception as e:
             logger.error(f"Chat error: {e}")
             return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/wildlife-report', methods=['POST'])
+    def api_wildlife_report():
+        """
+        TripPlanner wildlife-report provider endpoint.
+        Implements the shared Wildlife Report Provider Contract (v1.1):
+        token-authed, read-only, returns recent megafauna near a destination.
+        """
+        expected_token = os.getenv('MEGAFAUNA_API_TOKEN')
+        if not expected_token:
+            logger.error("MEGAFAUNA_API_TOKEN not configured — endpoint disabled")
+            return jsonify({'error': 'Provider not configured'}), 503
+
+        # Bearer token, timing-safe compare
+        auth = request.headers.get('Authorization', '')
+        provided = auth[7:] if auth.startswith('Bearer ') else ''
+        if not provided or not hmac.compare_digest(provided, expected_token):
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return jsonify({'error': 'Malformed request body'}), 400
+
+        dest = body.get('destination')
+        if not isinstance(dest, dict) or 'name' not in dest:
+            return jsonify({'error': 'destination.name is required'}), 400
+
+        try:
+            report = build_report(
+                destination_name=dest.get('name'),
+                lat=dest.get('lat'),
+                lng=dest.get('lng'),
+                radius_mi=body.get('radius_mi', 50),
+                recency_days=body.get('recency_days', 14),
+                max_items=body.get('max_items', 8),
+            )
+            return jsonify(report)
+        except Exception as e:
+            logger.error(f"Wildlife report error: {e}")
+            return jsonify({'error': 'Provider error'}), 500
 
     @app.route('/health')
     def health():

@@ -1,5 +1,5 @@
 # Megafauna Tracker — Backlog
-_Last updated: 2026-06-09_
+_Last updated: 2026-07-11_
 
 ## 🔴 High
 - [ ] **AI Analysis page** — dedicated page (mirroring Bird Tracker): Claude summary of current observations, trend analysis, and a conversational query interface. `[feature]`
@@ -17,6 +17,7 @@ _Last updated: 2026-06-09_
 - [ ] **Alaska Outdoors Forums scraper** — scrape recent "Russian River" + "bear" posts; graceful degradation; stub in `sources/forums.py`. `[feature]`
 
 ## ✅ Shipped
+- [x] **TripPlanner wildlife-report provider endpoint** — v0.6.0
 - [x] **Marker clustering** — v0.5.5
 - [x] **Species drill-down (per-species colors + dynamic legend)** — v0.5.2
 - [x] **Expand to all of North America (location search, 6 groups, 39 species, 11 Quick Picks)** — v0.5.0
