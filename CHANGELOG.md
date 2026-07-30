@@ -4,6 +4,10 @@ All notable changes to Megafauna Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/);
 this project adheres to [Semantic Versioning](https://semver.org/) per `VERSIONING.md`.
 
+## [0.6.1] – 2026-07-30
+### Fixed
+- AI Analysis no longer times out on Render. Gunicorn ran with the default 30 s worker timeout, which SIGKILL'd the worker mid-request during the Claude briefing call. Set `--timeout 120` and switched to a threaded worker (`gthread`, 4 threads) so a slow AI request completes and doesn't block other requests.
+
 ## [0.6.0] – 2026-07-11
 ### Added
 - **TripPlanner wildlife-report provider** — `POST /api/wildlife-report` implements the shared Wildlife Report Provider Contract v1.1, so Megafauna sightings appear as a section in TripPlanner's Daily Digest.
