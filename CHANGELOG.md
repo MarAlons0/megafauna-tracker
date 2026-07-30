@@ -4,6 +4,10 @@ All notable changes to Megafauna Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/);
 this project adheres to [Semantic Versioning](https://semver.org/) per `VERSIONING.md`.
 
+## [0.6.2] – 2026-07-30
+### Fixed
+- AI errors no longer fail silently. `/api/analyze` and `/api/chat` previously swallowed API failures (invalid key, rate limit, timeout) and returned `200` with empty content, so the UI showed nothing. They now return `502` with the actual error message, and `/api/chat` returns `503` when no key is configured. The summarizer's `analyze_observations`/`chat` methods raise instead of returning `None`/a fallback string.
+
 ## [0.6.1] – 2026-07-30
 ### Fixed
 - AI Analysis no longer times out on Render. Gunicorn ran with the default 30 s worker timeout, which SIGKILL'd the worker mid-request during the Claude briefing call. Set `--timeout 120` and switched to a threaded worker (`gthread`, 4 threads) so a slow AI request completes and doesn't block other requests.

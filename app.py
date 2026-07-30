@@ -281,10 +281,12 @@ def create_app():
                 location_name, radius_miles, days,
                 observations, bucket_data, adfg_context
             )
+            if not text:
+                return jsonify({'error': 'AI analysis returned no content.'}), 502
             return jsonify({'analysis': text})
         except Exception as e:
             logger.error(f"Analyze error: {e}")
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'error': f'AI analysis failed: {e}'}), 502
 
     @app.route('/api/chat', methods=['POST'])
     def api_chat():
@@ -308,11 +310,15 @@ def create_app():
         try:
             from ai.summarizer import get_summarizer
             summarizer = get_summarizer()
+            if not summarizer.is_available:
+                return jsonify({'error': 'AI unavailable — check ANTHROPIC_API_KEY'}), 503
             reply = summarizer.chat(message, history, observations_context, location_name)
+            if not reply:
+                return jsonify({'error': 'AI chat returned no content.'}), 502
             return jsonify({'response': reply})
         except Exception as e:
             logger.error(f"Chat error: {e}")
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'error': f'AI chat failed: {e}'}), 502
 
     @app.route('/api/wildlife-report', methods=['POST'])
     def api_wildlife_report():

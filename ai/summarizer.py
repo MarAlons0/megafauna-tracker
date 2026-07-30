@@ -215,7 +215,7 @@ Practical guidance for a visitor: safety-relevant activity (bears especially), b
             return self._extract_text(response)
         except Exception as e:
             logger.error(f"Analysis error: {e}")
-            return None
+            raise
 
     def chat(self, message, history, observations_context, location_name):
         """
@@ -231,7 +231,7 @@ Practical guidance for a visitor: safety-relevant activity (bears especially), b
             str: AI response
         """
         if not self.client:
-            return "AI assistant is not available — check ANTHROPIC_API_KEY."
+            raise RuntimeError("AI assistant is not available — check ANTHROPIC_API_KEY.")
 
         system = (
             f"You are an expert wildlife naturalist assistant. "
@@ -254,7 +254,7 @@ Practical guidance for a visitor: safety-relevant activity (bears especially), b
             return self._extract_text(response)
         except Exception as e:
             logger.error(f"Chat error: {e}")
-            return "Unable to respond at this time."
+            raise
 
     def _extract_text(self, response):
         if not response or not response.content:
