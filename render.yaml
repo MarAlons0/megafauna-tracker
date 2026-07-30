@@ -1,0 +1,24 @@
+# Render Blueprint for Megafauna Tracker
+# https://render.com/docs/infrastructure-as-code
+#
+# NOTE: If this service was created manually, a Start Command set in the Render
+# dashboard OVERRIDES the startCommand below (and the Procfile). To make the
+# gunicorn --timeout take effect, either point the service at this blueprint,
+# or set the same command in Dashboard → Settings → Start Command.
+
+services:
+  - type: web
+    name: megafauna-tracker
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Threaded worker + 120s timeout so the synchronous Claude call in
+    # /api/analyze completes without hitting gunicorn's default 30s worker
+    # timeout (which SIGKILLs the worker mid-request).
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --worker-class gthread --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.2
+      # Set these manually in the Render dashboard (secrets — do not commit):
+      # - ANTHROPIC_API_KEY   (AI Analysis + Conditions summaries)
+      # - MEGAFAUNA_API_TOKEN (TripPlanner wildlife-report provider auth)
