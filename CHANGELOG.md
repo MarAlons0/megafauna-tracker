@@ -4,6 +4,10 @@ All notable changes to Megafauna Tracker are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/);
 this project adheres to [Semantic Versioning](https://semver.org/) per `VERSIONING.md`.
 
+## [0.6.3] – 2026-10-27
+### Security
+- **`certifi` CA bundle raised to ≥ 2026.10.19** for the eMudhra intermediate-certificate compromise (disclosed 2026-10-19). `requests`/`httpx` trust `certifi`'s bundled CA list, not the system store, so a rebuild alone kept trusting the compromised intermediates; `certifi` is now listed in `requirements.txt` so every build installs a fixed version.
+
 ## [0.6.2] – 2026-07-30
 ### Fixed
 - AI errors no longer fail silently. `/api/analyze` and `/api/chat` previously swallowed API failures (invalid key, rate limit, timeout) and returned `200` with empty content, so the UI showed nothing. They now return `502` with the actual error message, and `/api/chat` returns `503` when no key is configured. The summarizer's `analyze_observations`/`chat` methods raise instead of returning `None`/a fallback string.
